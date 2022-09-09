@@ -1,3 +1,7 @@
 @tailwind base;
+
+@import "./general.css";
+@import "./docs.css";
+
 @tailwind components;
 @tailwind utilities;

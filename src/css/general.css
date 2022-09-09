@@ -1,0 +1,3 @@
+body a {
+  @apply text-black underline underline-offset-[3px] transition duration-500 hover:text-gray-400 dark:text-white dark:hover:text-gray-400;
+}
