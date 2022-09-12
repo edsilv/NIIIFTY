@@ -3,5 +3,5 @@ export async function getStaticProps() {
 }
 
 export default function About({ authorDetails }) {
-  return <>about</>;
+  return <>About (todo)</>;
 }
