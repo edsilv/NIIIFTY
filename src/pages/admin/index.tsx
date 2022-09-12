@@ -31,7 +31,7 @@ const PostList = () => {
     <div className="w-full">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold">
             <>{t("myPosts")}</>
           </h1>
           {posts.length === 0 && (
