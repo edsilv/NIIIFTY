@@ -120,7 +120,6 @@ function SignInWithGoogle() {
 
 // Username form
 function UsernameForm() {
-  const [defaultUsername] = useState(localStorage.getItem("defaultUsername"));
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [isUsernameValid, setUsernameIsValid] = useState(false);
@@ -131,28 +130,18 @@ function UsernameForm() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  // const isMountedRef = useRef(true);
-
   type Errors = {
     [key in "username" | "displayName"]?: string | boolean;
   };
 
-  // for some reason useMounted doesn't work here
-  // when signing in and bypassing the username form ¯\_(ツ)_/¯
-  // useEffect(
-  //   () => () => {
-  //     console.log("unmounting");
-  //     isMountedRef.current = false;
-  //   },
-  //   []
-  // );
-
   useEffect(() => {
     // if (defaultUsername && isMountedRef.current) {
-    if (defaultUsername) {
+    if (user) {
+      // get first part of email before @
+      const defaultUsername = user.email.split("@")[0];
       validateUsername(defaultUsername);
     }
-  }, [defaultUsername]);
+  }, [user]);
 
   const handleValidation = () => {
     let tempErrors: Errors = {};
