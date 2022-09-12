@@ -2,7 +2,7 @@ import { auth, db, googleAuthProvider } from "@/utils/Firebase";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { UserContext } from "@/utils/UserContext";
 import { doc, getDoc, writeBatch } from "firebase/firestore";
-import { signInWithPopup, updateProfile } from "firebase/auth";
+import { signInWithPopup } from "firebase/auth";
 import { useRouter } from "next/router";
 import { Button, FormItem, Label, TextInput } from "@/components/FormControls";
 import debounce from "lodash.debounce";
@@ -121,7 +121,7 @@ function SignInWithGoogle() {
 // Username form
 function UsernameForm() {
   const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  // const [displayName, setDisplayName] = useState("");
   const [isUsernameValid, setUsernameIsValid] = useState(false);
   const [usernameExists, setUsernameExists] = useState(false);
   const [checkingUsernameExists, setCheckingUsernameExists] = useState(false);
@@ -131,11 +131,10 @@ function UsernameForm() {
   const { t } = useTranslation();
 
   type Errors = {
-    [key in "username" | "displayName"]?: string | boolean;
+    [key in "username"]?: string | boolean;
   };
 
   useEffect(() => {
-    // if (defaultUsername && isMountedRef.current) {
     if (user) {
       // get first part of email before @
       const defaultUsername = user.email.split("@")[0];
@@ -152,10 +151,10 @@ function UsernameForm() {
       isValid = false;
     }
 
-    if (displayName.length <= 0) {
-      tempErrors["displayName"] = String(t("fullNameCannotBeEmpty"));
-      isValid = false;
-    }
+    // if (displayName.length <= 0) {
+    //   tempErrors["displayName"] = String(t("fullNameCannotBeEmpty"));
+    //   isValid = false;
+    // }
 
     setErrors({ ...tempErrors });
     return isValid;
@@ -184,9 +183,9 @@ function UsernameForm() {
       await batch.commit();
 
       // update displayName
-      await updateProfile(user, {
-        displayName,
-      });
+      // await updateProfile(user, {
+      //   displayName,
+      // });
 
       router.push({
         pathname: "/admin",
@@ -253,7 +252,7 @@ function UsernameForm() {
   return (
     !existingUsername && (
       <form onSubmit={handleSubmit} className="mx-auto w-full lg:w-1/2">
-        <FormItem>
+        {/* <FormItem>
           <Label value={t("fullName")} />
           <TextInput
             id="displayName"
@@ -264,7 +263,7 @@ function UsernameForm() {
             }}
             errors={errors}
           />
-        </FormItem>
+        </FormItem> */}
 
         <FormItem>
           <Label value={t("chooseAUsername")} />
