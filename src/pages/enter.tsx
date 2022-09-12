@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { AgreeToPolicies } from "@/components/AgreeToPolicies";
 import { AvailabilityMessage } from "@/components/AvailabilityMessage";
 import { SigningInMessage } from "@/components/SigningInMessage";
-import cx from "classNames";
+import cx from "classnames";
 
 export default function Enter(_props) {
   const { user, username, loaded } = useContext(UserContext);
