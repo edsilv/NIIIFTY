@@ -34,7 +34,7 @@ i18n
           isInvalid: '"{{val}}" is invalid.',
           isTaken: '"{{val}}" is taken, please try another.',
           loading: "Loading...",
-          mnemoscene: "Mnemoscene",
+          mnemosceneLtd: "Mnemoscene LTD",
           modified: "Modified",
           myPosts: "My Posts",
           next: "Next",
@@ -54,6 +54,8 @@ i18n
           signOut: "Sign Out",
           siteName: "NIIIFTY",
           termsOfService: "Terms of Service",
+          usernameInvalid:
+            "Please use 2 to 15 letters, numbers, underscores, or full stops. Underscores and full stops must not be at the start or end, or used sequentially.",
         },
       },
     },

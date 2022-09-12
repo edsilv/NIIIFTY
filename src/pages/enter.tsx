@@ -40,6 +40,11 @@ export default function Enter(_props) {
       return <SignInWithGoogle />;
     }
 
+    if (user && !username) {
+      // show create username form
+      return <UsernameForm />;
+    }
+
     return <SigningInMessage />;
   }
 
@@ -126,7 +131,7 @@ function UsernameForm() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const isMountedRef = useRef(true);
+  // const isMountedRef = useRef(true);
 
   type Errors = {
     [key in "username" | "displayName"]?: string | boolean;
@@ -134,15 +139,17 @@ function UsernameForm() {
 
   // for some reason useMounted doesn't work here
   // when signing in and bypassing the username form ¯\_(ツ)_/¯
-  useEffect(
-    () => () => {
-      isMountedRef.current = false;
-    },
-    []
-  );
+  // useEffect(
+  //   () => () => {
+  //     console.log("unmounting");
+  //     isMountedRef.current = false;
+  //   },
+  //   []
+  // );
 
   useEffect(() => {
-    if (defaultUsername && isMountedRef.current) {
+    // if (defaultUsername && isMountedRef.current) {
+    if (defaultUsername) {
       validateUsername(defaultUsername);
     }
   }, [defaultUsername]);
@@ -241,13 +248,14 @@ function UsernameForm() {
   const checkUsernameExists = useCallback(
     debounce(async (username) => {
       if (username.length >= 2) {
+        console.log("checking username exists");
         const docRef = doc(db, `usernames/${username}`);
         const docSnap = await getDoc(docRef);
         const exists: boolean = docSnap.exists();
-        if (isMountedRef.current) {
-          setUsernameExists(exists);
-          setCheckingUsernameExists(false);
-        }
+        // if (isMountedRef.current) {
+        setUsernameExists(exists);
+        setCheckingUsernameExists(false);
+        //}
       }
     }, 500),
     []

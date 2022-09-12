@@ -2,28 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-
-      match /posts/{postId} {
-        // listing posts is forbidden
-        // must have been given access to the edit id to get this far
-        allow read;
-        allow get;
-        // allow get: if true; 
-        // creating is only permitted for authenticated users 
-        allow create: if request.auth != null;
-        // updating is only permitted for authenticated users 
-        allow update: if request.auth != null;
-        // reading annotations is allowed if you've got the edit id
-        match /annotations/{annotationId} {
-          allow read;
-        }
-        match /annotations/{annotationId} {
-          allow create, update, delete: if request.auth != null;
-        }
-        match /items/{itemId} {
-          allow create, read, update, delete: if request.auth != null;
-        }
-      }
       
       match /users/{userId} {
       	allow read;

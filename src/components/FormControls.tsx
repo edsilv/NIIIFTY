@@ -144,7 +144,10 @@ export const Label = ({
   optional?: boolean;
   classes?: string | undefined;
 }) => {
-  const c = classNames(classes, "block text-gray-900 text-sm font-bold mb-2");
+  const c = classNames(
+    classes,
+    "block text-gray-900 dark:text-white text-sm font-bold mb-2"
+  );
   const label = `${value} ${!optional && "(required)"}`;
   return (
     <label
@@ -481,7 +484,7 @@ export const CheckboxButton = ({
       />
       <label
         htmlFor={id}
-        className="text-primary-600 cursor-pointer select-none align-middle"
+        className="cursor-pointer select-none align-middle text-primary-600"
       >
         {label}
       </label>

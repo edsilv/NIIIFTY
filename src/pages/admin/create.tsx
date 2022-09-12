@@ -5,5 +5,5 @@ export default function CreateExhibitPage(_props) {
 }
 
 function CreateExhibit() {
-  return <div>Create Exhibit</div>;
+  return <div>Create Post (todo)</div>;
 }

@@ -59,7 +59,8 @@ export default function Home() {
   return (
     <>
       <Metatags title={title} description={description} />
-      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+      <p>Home page (todo)</p>
+      {/* <div className="divide-y divide-gray-200 dark:divide-gray-700">
         <div className="space-y-2 pt-6 pb-8 md:space-y-5">
           <h1 className="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14">
             Latest
@@ -93,11 +94,6 @@ export default function Home() {
                               {title}
                             </Link>
                           </h2>
-                          {/* <div className="flex flex-wrap">
-                            {tags.map((tag) => (
-                              <Tag key={tag} text={tag} />
-                            ))}
-                          </div> */}
                         </div>
                         <div className="prose max-w-none text-gray-500 dark:text-gray-400">
                           {description}
@@ -119,8 +115,8 @@ export default function Home() {
             );
           })}
         </ul>
-      </div>
-      {posts.length > MAX_DISPLAY && (
+      </div> */}
+      {/* {posts.length > MAX_DISPLAY && (
         <div className="flex justify-end text-base font-medium leading-6">
           <Link
             href="/blog"
@@ -130,7 +126,7 @@ export default function Home() {
             All Posts &rarr;
           </Link>
         </div>
-      )}
+      )} */}
     </>
   );
 }

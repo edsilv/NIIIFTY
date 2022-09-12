@@ -16,11 +16,11 @@ export interface Environment {
   firebaseConfig: FirebaseConfig;
   recaptchaSiteKey: string;
   site: string;
-  headerTitle: string;
   theme: "system" | "light" | "dark";
+  // todo: put these in i18n.ts
+  headerTitle: string;
   title: string;
   description: string;
-  // email: string;
 }
 
 export type EnvironmentType = "default" | "staging";

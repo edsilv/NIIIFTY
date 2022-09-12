@@ -493,7 +493,7 @@ export default function Doc(_props) {
               rel="external nofollow noopener"
               target="_blank"
             >
-              https://niiifty.com/docs/contact
+              https://niiifty.com/contact
             </a>
           </li>
         </ul>

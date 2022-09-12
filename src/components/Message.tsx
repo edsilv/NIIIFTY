@@ -9,7 +9,7 @@ const Message = ({
   classes?: string | undefined;
   children?: any;
 }) => {
-  const c = cx("p-8 lg:p-16 text-gray-900", classes);
+  const c = cx("p-8 lg:p-16", classes);
   return <div className={c}>{children}</div>;
 };
 

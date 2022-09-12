@@ -5,8 +5,20 @@ import Footer from "./Footer";
 import MobileNav from "./MobileNav";
 import ThemeSwitch from "./ThemeSwitch";
 import { useTranslation } from "react-i18next";
+import { useContext } from "react";
+import { UserContext } from "@/utils/UserContext";
+import { auth } from "@/utils/Firebase";
+import router from "next/router";
 
 const LayoutWrapper = ({ children }) => {
+  const { username } = useContext(UserContext);
+
+  const signOut = (e) => {
+    e.preventDefault();
+    auth.signOut();
+    router.reload();
+  };
+
   const { t } = useTranslation();
   return (
     <SectionContainer>
@@ -15,9 +27,9 @@ const LayoutWrapper = ({ children }) => {
           <div>
             <Link href="/" aria-label={headerTitle}>
               <div className="flex items-center justify-between">
-                <div className="mr-3 dark:text-white text-black">
+                <div className="mr-3 text-black dark:text-white">
                   <svg
-                    className="w-auto h-5"
+                    className="h-5 w-auto"
                     width="461"
                     height="94"
                     viewBox="0 0 461 94"
@@ -53,8 +65,17 @@ const LayoutWrapper = ({ children }) => {
                 href="/admin"
                 className="p-1 font-medium text-gray-900 dark:text-gray-100 sm:p-4"
               >
-                {t("admin")}
+                {t("myPosts")}
               </Link>
+              {username && (
+                <a
+                  onClick={signOut}
+                  role="menuitem"
+                  className="cursor-pointer p-1 font-medium text-gray-900 dark:text-gray-100 sm:p-4"
+                >
+                  <>{t("signOut")}</>
+                </a>
+              )}
             </div>
             <ThemeSwitch />
             <MobileNav />

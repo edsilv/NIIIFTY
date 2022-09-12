@@ -10,7 +10,7 @@ const Large = ({ href }) => {
 
   return (
     <Link href={href}>
-      <a className="transition-color mx-auto flex cursor-pointer flex-row items-center rounded-md bg-black px-6 py-3 text-lg font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none lg:mx-0">
+      <a className="transition-color mx-auto flex cursor-pointer flex-row items-center rounded-md bg-black px-6 py-3 text-lg font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none dark:bg-white dark:text-black lg:mx-0">
         <>
           {t("createAPost")}
           <svg
@@ -36,7 +36,7 @@ const Small = ({ href }) => {
 
   return (
     <Link href={href}>
-      <a className="inline-flex items-center justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none sm:w-auto">
+      <a className="inline-flex items-center justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none dark:bg-white dark:text-black sm:w-auto">
         <>{t("createAPost")}</>
       </a>
     </Link>

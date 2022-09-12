@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { auth } from "@/utils/Firebase";
+import { UserContext } from "@/utils/UserContext";
+import router from "next/router";
+import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "./Link";
 
 const MobileNav = () => {
+  const { username } = useContext(UserContext);
   const { t } = useTranslation();
   const [navShow, setNavShow] = useState(false);
+
+  const signOut = (e) => {
+    e.preventDefault();
+    auth.signOut();
+    router.reload();
+  };
 
   const onToggleNav = () => {
     setNavShow((status) => {
@@ -72,8 +82,19 @@ const MobileNav = () => {
               className="text-2xl font-bold tracking-widest text-gray-900 dark:text-gray-100"
               onClick={onToggleNav}
             >
-              {t("admin")}
+              {t("myPosts")}
             </Link>
+          </div>
+          <div className="px-12 py-4">
+            {username && (
+              <a
+                onClick={signOut}
+                role="menuitem"
+                className="cursor-pointer text-2xl font-bold tracking-widest text-gray-900 dark:text-gray-100"
+              >
+                <>{t("signOut")}</>
+              </a>
+            )}
           </div>
         </nav>
       </div>

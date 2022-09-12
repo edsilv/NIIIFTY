@@ -1,5 +1,4 @@
 import AuthCheck from "@/components/AuthCheck";
-import { BasicLayout } from "@/layouts/BasicLayout";
 import { UserContext } from "@/utils/UserContext";
 import { slugify } from "@/utils/Utils";
 import { useContext, useState } from "react";
@@ -36,7 +35,7 @@ const PostList = () => {
             <>{t("myPosts")}</>
           </h1>
           {posts.length === 0 && (
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="mt-2 text-sm">
               <>{t("noPostsFound")}</>
             </p>
           )}
