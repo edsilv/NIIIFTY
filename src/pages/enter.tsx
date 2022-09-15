@@ -49,7 +49,7 @@ export default function Enter(_props) {
   }
 
   return (
-    <section className="py-16">
+    <section className="py-8">
       <SignInState />
     </section>
   );

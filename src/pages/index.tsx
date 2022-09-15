@@ -1,3 +1,4 @@
+import CreatePostButton from "@/components/CreatePostButton";
 import Link from "@/components/Link";
 import Metatags from "@/components/Metatags";
 import { title, description } from "../utils/Config";
@@ -59,7 +60,10 @@ export default function Home() {
   return (
     <>
       <Metatags title={title} description={description} />
-      <p>Home page (todo)</p>
+      <div className="w-56">
+        <CreatePostButton.Large href="/admin" />
+      </div>
+
       {/* <div className="divide-y divide-gray-200 dark:divide-gray-700">
         <div className="space-y-2 pt-6 pb-8 md:space-y-5">
           <h1 className="text-3xl font-extrabold leading-9 tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl sm:leading-10 md:text-6xl md:leading-14">
