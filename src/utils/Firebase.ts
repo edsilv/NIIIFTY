@@ -11,6 +11,7 @@ import {
   getDoc,
   doc,
 } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import config from "../../niiifty.config";
 import { Post } from "./Types";
 
@@ -24,6 +25,9 @@ export const emailAuthProvider = new EmailAuthProvider();
 
 // Firestore exports
 export const db = getFirestore(firebaseApp);
+
+// Storage exports
+export const storage = getStorage(firebaseApp);
 
 // Helper functions
 export async function getUserWithUsername(username: string) {

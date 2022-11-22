@@ -42,14 +42,14 @@ const LayoutWrapper = ({ children }) => {
                     </g>
                     <defs>
                       <linearGradient id="paint0_linear_309_11" x1="40.4462" y1="3.22137" x2="40.4462" y2="50.1104" gradientUnits="userSpaceOnUse">
-                        <stop stop-color="#00FFE0" />
-                        <stop offset="0.390625" stop-color="#0308FF" />
-                        <stop offset="1" stop-color="#268EFC" />
+                        <stop stopColor="#00FFE0" />
+                        <stop offset="0.390625" stopColor="#0308FF" />
+                        <stop offset="1" stopColor="#268EFC" />
                       </linearGradient>
                       <radialGradient id="paint1_radial_309_11" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(9.10132 11.362) rotate(49.4672) scale(57.08)">
-                        <stop stop-color="#E400FF" />
-                        <stop offset="0.354167" stop-color="#CA28FF" />
-                        <stop offset="0.895833" stop-color="#1CBAFD" />
+                        <stop stopColor="#E400FF" />
+                        <stop offset="0.354167" stopColor="#CA28FF" />
+                        <stop offset="0.895833" stopColor="#1CBAFD" />
                       </radialGradient>
                     </defs>
                   </svg>
