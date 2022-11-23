@@ -5,9 +5,9 @@ import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
 
 function getThumbnailURL(imageURL: string) {
-  const regex = /uploads%2F.*%2F/i;
-  const uploadsPath = regex.exec(imageURL)[0];
-  return imageURL.replace(uploadsPath, uploadsPath + "thumb_");
+  const regex = /images%2F.*%2F/i;
+  const imagesPath = regex.exec(imageURL)[0];
+  return imageURL.replace(imagesPath, imagesPath + "thumb_");
 }
 
 // Uploads images to Firebase Storage
@@ -27,7 +27,7 @@ export default function ImageUploader({ onComplete }) {
 
     // Makes reference to the storage bucket location
     const storageRef = ref(storage,
-      `uploads/${auth.currentUser.uid}/${Date.now()}.${extension}`
+      `images/${auth.currentUser.uid}/${Date.now()}.${extension}`
     );
 
     setUploading(true);

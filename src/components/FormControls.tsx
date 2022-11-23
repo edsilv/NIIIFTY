@@ -45,15 +45,15 @@ export const Select = ({
     if (options) {
       return isMulti
         ? options.filter(
-            (option) => form.values[name].indexOf(option.value) >= 0
-          )
+          (option) => form.values[name].indexOf(option.value) >= 0
+        )
         : options.find(
-            (option) =>
-              option.value ===
-              (Array.isArray(form.values[name])
-                ? form.values[name][0]
-                : form.values[name])
-          );
+          (option) =>
+            option.value ===
+            (Array.isArray(form.values[name])
+              ? form.values[name][0]
+              : form.values[name])
+        );
     } else {
       return isMulti ? [] : ("" as any);
     }
@@ -103,7 +103,7 @@ export const Button = ({
 }) => {
   const c = classNames(
     classes,
-    "transition duration-300 bg-primary-500 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring",
+    "transition duration-300 bg-black hover:bg-white hover:text-black text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring dark:bg-white dark:text-black",
     {
       "opacity-25": disabled,
     }
