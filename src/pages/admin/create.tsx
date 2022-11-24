@@ -16,6 +16,10 @@ function CreatePost() {
       console.log("onComplete");
       setImageURL(imageURL);
       setThumbnailURL(thumbnailURL);
+
+      // todo: once image is uploaded allow user to create post
+      // this will call the ipfs upload function as we'll have a post in firestore
+      // to store the cid in. addImageToW3S(postid, imagename) => cid
     }} />
 
     {imageUrl && <p>{imageUrl}</p>}
