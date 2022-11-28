@@ -16,18 +16,18 @@ function CreateFile() {
 
   // todo: auto-detect file type when drag/dropped instead of relying on user to select
   return <div>
-    <ImageUploader onComplete={async ({ imageURL, thumbnailURL }) => {
+    <ImageUploader onComplete={async ({ id }) => {
       console.log("onComplete");
       // setImageURL(imageURL);
       // setThumbnailURL(thumbnailURL);
 
       // create file in firestore
-      const id = await add(userAdapter!, {
+      const fileid = await add(userAdapter!, {
         uid: user.uid,
         name: "Untitled",
       });
 
-      console.log("added file", id);
+      console.log("added file", fileid);
 
       // todo: once image is uploaded allow user to create file
       // this will call the ipfs upload function as we'll have a file in firestore

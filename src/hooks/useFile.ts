@@ -21,7 +21,7 @@ import { UserAdapter } from "./UserAdapter";
 
 export const add = async (
   userAdapter: UserAdapter,
-  values: File,
+  values: Partial<File>,
 ) => {
   const id = await userAdapter.addFile(values);
   // id can be an file's private id (anonymous user), or an file's slug (identified user).
