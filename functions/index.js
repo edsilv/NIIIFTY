@@ -2,16 +2,16 @@
 
 const functions = require('firebase-functions');
 const { Storage } = require('@google-cloud/storage');
+const { Web3Storage } = require('web3.storage');
 const path = require('path');
 const sharp = require('sharp');
-const { Web3Storage, File } = require('web3.storage');
 
 const THUMB_MAX_WIDTH = 200;
 const THUMB_MAX_HEIGHT = 200;
 
 const gcs = new Storage();
+
 const web3StorageAPIKey = process.env.WEB3_STORAGE_API_KEY;
-// console.log("apikey", web3StorageAPIKey);
 const web3Storage = new Web3Storage({ token: web3StorageAPIKey });
 
 /**
@@ -71,38 +71,52 @@ exports.generateThumbnail = functions.storage.object().onFinalize((object) => {
 		thumbnailUploadStream.on('finish', resolve).on('error', reject));
 });
 
-exports.addImageToIPFS = functions.storage.object().onFinalize(async (object) => {
-	const fileBucket = object.bucket; // The Storage bucket that contains the file.
-	const filePath = object.name; // File path in the bucket.
-	const contentType = object.contentType; // File content type.
+// when a file is created, generate a thumbnail, and replicate the file to web3.storage
+exports.createFile = functions.firestore
+	.document('files/{fileId}')
+	.onCreate((snap, context) => {
+		// Get an object representing the document
+		// e.g. {'name': 'Marie', 'age': 66}
+		// const newValue = snap.data();
 
-	// Exit if this is triggered on a file that is not an image.
-	if (!contentType.startsWith('image/')) {
-		functions.logger.log('rejecting: this is not an image.');
-		return null;
-	}
+		// access a particular field as you would any JS property
+		// const name = newValue.name;
 
-	// Get the file name.
-	const fileName = path.basename(filePath);
-	// Exit if the image is already a thumbnail.
-	if (fileName.startsWith('thumb_')) {
-		functions.logger.log('rejecting: image is a thumbnail.');
-		return null;
-	}
+		return snap.ref.set({
+			cid: "mycid"
+		}, { merge: true });
+	});
 
-	// download file from bucket.
-	// const fileContents = Buffer.from(await gcs.bucket(fileBucket).file(filePath).download());
-	// const cid = await web3Storage.put([new File([fileContents], fileName)]);
+// exports.addImageToIPFS = functions.storage.object().onFinalize(async (object) => {
+// 	const fileBucket = object.bucket; // The Storage bucket that contains the file.
+// 	const filePath = object.name; // File path in the bucket.
+// 	const contentType = object.contentType; // File content type.
 
-	// stream file from bucket
-	const file = {
-		name: filePath.split('/').pop(),
-		stream: () => gcs.bucket(fileBucket).file(filePath).createReadStream()
-	};
-	const cid = await web3Storage.put([file]);
+// 	// Exit if this is triggered on a file that is not an image.
+// 	if (!contentType.startsWith('image/')) {
+// 		functions.logger.log('rejecting: this is not an image.');
+// 		return null;
+// 	}
 
-	console.log(`IPFS CID: ${cid}`);
-	console.log(`Gateway URL: https://${cid}.ipfs.w3s.link`);
+// 	// Get the file name.
+// 	const fileName = path.basename(filePath);
+// 	// Exit if the image is already a thumbnail.
+// 	if (fileName.startsWith('thumb_')) {
+// 		functions.logger.log('rejecting: image is a thumbnail.');
+// 		return null;
+// 	}
 
-	// todo: find post with same name and add cid to it
-});
+// 	// download file from bucket.
+// 	// const fileContents = Buffer.from(await gcs.bucket(fileBucket).file(filePath).download());
+// 	// const cid = await web3Storage.put([new File([fileContents], fileName)]);
+
+// 	// stream file from bucket
+// 	const file = {
+// 		name: filePath.split('/').pop(),
+// 		stream: () => gcs.bucket(fileBucket).file(filePath).createReadStream()
+// 	};
+// 	const cid = await web3Storage.put([file]);
+
+// 	console.log(`IPFS CID: ${cid}`);
+// 	console.log(`Gateway URL: https://${cid}.ipfs.w3s.link`);
+// });

@@ -3,25 +3,25 @@ import { UserContext } from "@/utils/UserContext";
 import { slugify } from "@/utils/Utils";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { remove } from "@/hooks/usePost";
-import { usePaginatedPosts } from "@/hooks/usePaginatedPosts";
-import CreatePostButton from "@/components/CreatePostButton";
+import { remove } from "@/hooks/useFile";
+import { usePaginatedFiles } from "@/hooks/usePaginatedFiles";
+import CreateFileButton from "@/components/CreateFileButton";
 
 export default function AdminPage(_props) {
   return <AuthCheck signedInContent={<Admin />}></AuthCheck>;
 }
 
 function Admin() {
-  return <PostList />;
+  return <FileList />;
 }
 
-const PostList = () => {
+const FileList = () => {
   const { user, username, userAdapter } = useContext(UserContext);
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
   const pageSize = 10;
 
-  const [posts, allPostsLoaded, loading] = usePaginatedPosts(
+  const [files, allFilesLoaded, loading] = usePaginatedFiles(
     user,
     page,
     pageSize
@@ -32,19 +32,19 @@ const PostList = () => {
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-xl font-semibold">
-            <>{t("myPosts")}</>
+            <>{t("myFiles")}</>
           </h1>
-          {posts.length === 0 && (
+          {files.length === 0 && (
             <p className="mt-2 text-sm">
-              <>{t("noPostsFound")}</>
+              <>{t("noFilesFound")}</>
             </p>
           )}
         </div>
         <div className="mt-6 sm:mt-0 sm:ml-16 sm:flex-none">
-          <CreatePostButton.Small href="/admin/create" />
+          <CreateFileButton.Small href="/admin/create" />
         </div>
       </div>
-      {posts.length > 0 && (
+      {files.length > 0 && (
         <>
           <div className="mt-8 overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:mx-0 md:rounded-lg">
             <table className="min-w-full divide-y divide-gray-300">
@@ -75,28 +75,28 @@ const PostList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {posts.map((post) => (
-                  <tr key={post.id}>
+                {files.map((file) => (
+                  <tr key={file.id}>
                     <td className="w-full max-w-0 py-4 pr-3 pl-4 text-sm font-medium text-gray-900">
-                      <a
-                        href={`/${username}/${slugify(post.title)}`}
+                      {/* <a
+                        href={`/${username}/${slugify(file.name)}`}
                         target="_blank"
                         className="text-blue-600 no-underline duration-500 hover:text-blue-900"
-                      >
-                        {post.title}
-                      </a>
+                      > */}
+                      {file.name}
+                      {/* </a> */}
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
                       {`${new Date(
-                        post.modified.toMillis()
+                        file.modified.toMillis()
                       ).toLocaleDateString()} | ${new Date(
-                        post.modified.toMillis()
+                        file.modified.toMillis()
                       ).toLocaleTimeString()}`}
                     </td>
                     <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         onClick={() => {
-                          window.location.href = `/admin/${post.id}`;
+                          window.location.href = `/admin/${file.id}`;
                         }}
                         className="text-blue-600 duration-500 hover:text-blue-900"
                       >
@@ -108,12 +108,12 @@ const PostList = () => {
                         onClick={() => {
                           if (
                             window.confirm(
-                              t("confirmPostDeletion", {
-                                title: post.title,
+                              t("confirmFileDeletion", {
+                                title: file.name,
                               })
                             )
                           ) {
-                            remove(userAdapter, post.id);
+                            remove(userAdapter, file.id);
                           }
                         }}
                         className="text-blue-600 duration-500 hover:text-blue-900"
@@ -128,7 +128,7 @@ const PostList = () => {
           </div>
           <div className="mt-6 w-full text-sm">
             {loading && <>{t("loading")}</>}
-            {!loading && !allPostsLoaded && (
+            {!loading && !allFilesLoaded && (
               <button
                 onClick={() => {
                   setPage(page + 1);
@@ -138,7 +138,7 @@ const PostList = () => {
                 <>{t("showMore")}</>
               </button>
             )}
-            {!loading && allPostsLoaded && <>{t("noMorePosts")}</>}
+            {!loading && allFilesLoaded && <>{t("noMoreFiles")}</>}
           </div>
         </>
       )}

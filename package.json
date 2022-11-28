@@ -17,6 +17,7 @@
     "formik": "^2.1.4",
     "i18next": "^21.9.1",
     "lodash.debounce": "^4.0.8",
+    "nanoid": "^4.0.0",
     "next": "latest",
     "next-themes": "^0.2.0",
     "react": "18.1.0",

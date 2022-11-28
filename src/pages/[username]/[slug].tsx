@@ -1,7 +1,7 @@
-import { PostProps } from "@/utils/Types";
+import { FileProps } from "@/utils/Types";
 import Metatags from "@/components/Metatags";
-import { getPostBySlug, getUserWithUsername } from "@/utils/Firebase";
-import { postToJson } from "@/utils/Utils";
+import { getFileBySlug, getUserWithUsername } from "@/utils/Firebase";
+import { fileToJson } from "@/utils/Utils";
 const striptags = require("striptags");
 
 export async function getServerSideProps({ query }) {
@@ -16,32 +16,31 @@ export async function getServerSideProps({ query }) {
     };
   }
 
-  let post = await getPostBySlug(user.uid, slug);
+  let file = await getFileBySlug(user.uid, slug);
 
-  // If no post, short circuit to 404 page
-  if (!post) {
+  // If no file, short circuit to 404 page
+  if (!file) {
     return {
       notFound: true,
     };
   }
 
   // make serialisable as json
-  post = postToJson(post);
+  file = fileToJson(file);
 
   return {
-    props: { username, slug, post, embedded: !!embedded },
+    props: { username, slug, file, embedded: !!embedded },
   };
 }
 
-export default function PostPage(props: PostProps) {
-  const title: string = `NIIIFTY | ${props.post.title}`;
-  const description: string = striptags(props.post.description);
+export default function FilePage(props: FileProps) {
+  const name: string = `NIIIFTY | ${props.file.name}`;
+  // const description: string = striptags(props.file.description);
 
   return (
     <>
-      <Metatags title={title} description={description} />
-      <h1>{title}</h1>
-      <div>{description}</div>
+      <Metatags title={name} description={""} />
+      <h1>{name}</h1>
     </>
   );
 }

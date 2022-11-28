@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import config from "../../niiifty.config";
-import { Post } from "./Types";
+import { File } from "./Types";
 
 const firebaseConfig = config.environments[config.environment].firebaseConfig;
 const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
@@ -47,18 +47,18 @@ export async function getUserWithUsername(username: string) {
   return null;
 }
 
-export async function getPostBySlug(uid, slug): Promise<Post> {
-  const postSnap = await getDoc(doc(db, `users/${uid}/posts/${slug}`));
+export async function getFileBySlug(uid, slug): Promise<File> {
+  const fileSnap = await getDoc(doc(db, `users/${uid}/files/${slug}`));
 
-  const exists: boolean = postSnap.exists();
+  const exists: boolean = fileSnap.exists();
 
   if (!exists) {
     return null;
   }
 
-  const post: Post = postSnap.data() as Post;
+  const file: File = fileSnap.data() as File;
 
-  return post;
+  return file;
 }
 
 export const timestamp = () => {

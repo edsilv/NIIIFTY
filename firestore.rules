@@ -13,10 +13,10 @@ service cloud.firestore {
         allow create: if isValidUsername(username);
       }
       
-      match /users/{userId}/posts/{postId} {
+      match /users/{userId}/files/{fileId} {
       	allow read;
-        allow create: if canCreatePost(userId); 
-        allow update: if canUpdatePost(userId);
+        allow create: if canCreateFile(userId); 
+        allow update: if canUpdateFile(userId);
         allow delete: if request.auth.uid == userId;
       }
 
@@ -38,9 +38,9 @@ service cloud.firestore {
         return isOwner && isValidLength && isValidUserDoc;     
       }
 
-      // Posts
+      // Files
       
-      function canCreatePost(userId) {
+      function canCreateFile(userId) {
         let isOwner = request.auth.uid == userId;
         let isNow = request.time == request.resource.data.createdAt;
         let isValidContent = request.resource.data.content.size() < 20000;
@@ -50,7 +50,7 @@ service cloud.firestore {
       	return isOwner && isNow && isValidContent && usernameMatches;
       }
       
-      function canUpdatePost(userId) {
+      function canUpdateFile(userId) {
         let isOwner = request.auth.uid == userId;
       	let isNow = request.time == request.resource.data.updatedAt;
         let isValidContent = request.resource.data.content.size() < 20000;

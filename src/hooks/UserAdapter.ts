@@ -1,14 +1,13 @@
 import { db, timestamp } from "@/utils/Firebase";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
-  setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { Post } from "@/utils/Types";
+import { File } from "@/utils/Types";
 import packageJSON from "../../package.json";
-import { slugify } from "@/utils/Utils";
 import { User } from "firebase/auth";
 
 export class UserAdapter {
@@ -18,37 +17,36 @@ export class UserAdapter {
     this.user = user;
   }
 
-  async addPost(values: Post) {
-    const post = {
+  async addFile(values: Partial<File>) {
+    const file = {
       ...values,
       created: timestamp(),
       modified: timestamp(),
       softwareVersion: packageJSON.version,
     };
 
-    const id: string = slugify(post.title);
-    await setDoc(doc(db, this.getPostPath(id)), post);
+    const { id } = await addDoc(collection(db, this.getAddFilePath()), file);
 
     return id;
   }
 
-  async updatePost(id: string, values: Post) {
-    await updateDoc(doc(db, this.getPostPath(id)), {
+  async updateFile(id: string, values: Partial<File>) {
+    await updateDoc(doc(db, this.getFilePath(id)), {
       ...values,
       modified: timestamp(),
       softwareVersion: packageJSON.version,
     });
   }
 
-  async removePost(id: string) {
-    await deleteDoc(doc(db, this.getPostPath(id)));
+  async removeFile(id: string) {
+    await deleteDoc(doc(db, this.getFilePath(id)));
   }
 
-  getPostPublicId() {
-    return doc(collection(db, `users/${this.user.uid}/posts/`)).id;
+  getAddFilePath() {
+    return "files";
   }
 
-  getPostPath(id: string) {
-    return `users/${this.user.uid}/posts/${id}`;
+  getFilePath(id: string) {
+    return `files/${id}`;
   }
 }

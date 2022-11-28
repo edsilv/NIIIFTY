@@ -1,8 +1,9 @@
 import cx from "classnames";
 import { useEffect, useRef, useState } from "react";
-import { auth, storage } from "../utils/Firebase";
+import { storage } from "../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
+import { nanoid } from "nanoid";
 
 function getThumbnailURL(imageURL: string) {
   const regex = /images%2F.*%2F/i;
@@ -26,9 +27,15 @@ export default function ImageUploader({ onComplete }) {
     const extension = file.type.split("/")[1];
 
     // Makes reference to the storage bucket location
-    const storageRef = ref(storage,
-      `images/${auth.currentUser.uid}/${Date.now()}.${extension}`
-    );
+    // const storageRef = ref(storage,
+    //   `images/${auth.currentUser.uid}/${Date.now()}.${extension}`
+    // );
+
+    const id = nanoid();
+
+    const fileName: string = `${id}.${extension}`;
+
+    const storageRef = ref(storage, fileName);
 
     setUploading(true);
 
@@ -68,6 +75,7 @@ export default function ImageUploader({ onComplete }) {
           setThumbnailURL(thumbnailURL);
           setUploading(false);
           onComplete({
+            id,
             imageURL,
             thumbnailURL,
           });

@@ -193,7 +193,7 @@ function UsernameForm() {
     }
   };
 
-  const reservedWords = ["admin", "posts"];
+  const reservedWords = ["admin", "files"];
 
   function validateUsername(uname) {
     uname = uname.toLowerCase();

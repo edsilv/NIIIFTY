@@ -1,13 +1,13 @@
 import AuthCheck from "@/components/AuthCheck";
 import { useRouter } from "next/router";
 
-export default function EditPostPage(_props) {
+export default function EditFilePage(_props) {
   const router = useRouter();
   const { slug } = router.query;
 
-  return <AuthCheck signedInContent={<EditPost id={slug} />}></AuthCheck>;
+  return <AuthCheck signedInContent={<EditFile id={slug} />}></AuthCheck>;
 }
 
-function EditPost(id) {
+function EditFile(id) {
   return <div>Editing {id}</div>;
 }

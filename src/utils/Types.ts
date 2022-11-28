@@ -1,19 +1,44 @@
 import { UserAdapter } from "@/hooks/UserAdapter";
 import { Timestamp } from "firebase/firestore";
 
-export interface Post {
+// https://lorefnon.tech/2020/02/02/conditionally-making-optional-properties-mandatory-in-typescript/
+type MandateProps<T extends {}, K extends keyof T> = Omit<T, K> & {
+  [MK in K]-?: NonNullable<T[MK]>;
+};
+
+export type MimeType = "image/png" | "video/mp4" | "audio/mpeg" | "model/gltf-binary";
+
+export interface File {
   id?: string;
   created: Timestamp;
+  uid: string; // who created it (files are global, not stored in user's collection)
   modified: Timestamp;
-  title: string;
-  description: string;
+  mimetype: MimeType;
+  name: string; // file name (auto-populated from file)
 }
 
-export type PostProps = {
+export type FileProps = {
   username: string | null;
   slug: string | null;
-  post: Post;
+  file: File;
 };
+
+// all of these props are required on save
+export type SavedFile = MandateProps<
+  File,
+  | "name"
+  | "mimetype"
+  | "uid"
+>;
+
+// loaded when authoring an file
+export interface AuthoringFile extends SavedFile {
+  id?: string;
+}
+
+// export type FileTuple = [string, File];
+// export type PartialFileTuple = [string, Partial<File>];
+// export type FileMap = Map<string, File>;
 
 export interface UseDocumentOptions<T> {
   onData?: (data: T) => void;
