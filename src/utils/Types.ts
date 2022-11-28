@@ -6,7 +6,15 @@ type MandateProps<T extends {}, K extends keyof T> = Omit<T, K> & {
   [MK in K]-?: NonNullable<T[MK]>;
 };
 
-export type MimeType = "image/png" | "video/mp4" | "audio/mpeg" | "model/gltf-binary";
+export const MIMETYPES = {
+  PNG: "image/png",
+  JPG: "image/jpeg",
+  MP4: "video/mp4",
+  GLB: "model/gltf-binary",
+} as const;
+// "audio/mpeg" ?
+
+export type MimeType = typeof MIMETYPES[keyof typeof MIMETYPES];
 
 export interface File {
   id?: string;

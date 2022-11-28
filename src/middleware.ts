@@ -5,6 +5,7 @@ export const config = {
   matcher: ['/', '/index'],
 }
 
+// https://github.com/vercel/examples/blob/main/edge-functions/basic-auth-password/middleware.ts
 export function middleware(req: NextRequest) {
   const basicAuth = req.headers.get('authorization');
   const url = req.nextUrl;

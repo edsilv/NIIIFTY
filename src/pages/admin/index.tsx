@@ -1,6 +1,5 @@
 import AuthCheck from "@/components/AuthCheck";
 import { UserContext } from "@/utils/UserContext";
-import { slugify } from "@/utils/Utils";
 import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { remove } from "@/hooks/useFile";

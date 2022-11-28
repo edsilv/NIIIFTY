@@ -1,5 +1,5 @@
 import AuthCheck from "@/components/AuthCheck";
-import ImageUploader from "@/components/ImageUploader";
+import FileUploader from "@/components/FileUploader";
 import { useContext, useState } from "react";
 import { add } from "@/hooks/useFile";
 import { UserContext } from "@/utils/UserContext";
@@ -16,18 +16,20 @@ function CreateFile() {
 
   // todo: auto-detect file type when drag/dropped instead of relying on user to select
   return <div>
-    <ImageUploader onComplete={async ({ id }) => {
+    <FileUploader onComplete={async ({ id }) => {
       console.log("onComplete");
       // setImageURL(imageURL);
       // setThumbnailURL(thumbnailURL);
 
-      // create file in firestore
-      const fileid = await add(userAdapter!, {
-        uid: user.uid,
-        name: "Untitled",
-      });
+      console.log("uploaded file", id);
 
-      console.log("added file", fileid);
+      // create file in firestore
+      // const fileid = await add(userAdapter!, {
+      //   uid: user.uid,
+      //   name: "Untitled",
+      // });
+
+      // console.log("added file", fileid);
 
       // todo: once image is uploaded allow user to create file
       // this will call the ipfs upload function as we'll have a file in firestore

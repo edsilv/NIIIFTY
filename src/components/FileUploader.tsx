@@ -4,19 +4,20 @@ import { storage } from "../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
 import { nanoid } from "nanoid";
+import { MIMETYPES } from "../utils/Types";
 
-function getThumbnailURL(imageURL: string) {
-  const regex = /images%2F.*%2F/i;
-  const imagesPath = regex.exec(imageURL)[0];
-  return imageURL.replace(imagesPath, imagesPath + "thumb_");
+function getThumbnailURL(fileURL: string) {
+  const fileName = fileURL.split('/').pop();
+  const thumbnailURL = fileURL.replace(fileName, "thumb_" + fileName);
+  return thumbnailURL;
 }
 
 // Uploads images to Firebase Storage
-export default function ImageUploader({ onComplete }) {
+export default function FileUploader({ onComplete }) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [imageURL, setImageURL] = useState(null);
+  // const [imageURL, setImageURL] = useState(null);
   const [thumbnailURL, setThumbnailURL] = useState(null);
   const [thumbnailReady, setThumbnailReady] = useState(false);
 
@@ -24,17 +25,25 @@ export default function ImageUploader({ onComplete }) {
   const uploadFile = async (e) => {
     // Get the file
     const file = Array.from(e.target.files)[0] as any;
+
+    // check max size (500mb)
+    if (file.size > 524288000) {
+      alert(t("fileTooLarge"));
+      return;
+    }
+
+    // check file type
+    if (!(file.type === MIMETYPES.GLB ||
+      file.type === MIMETYPES.JPG ||
+      file.type === MIMETYPES.MP4 ||
+      file.type === MIMETYPES.PNG)) {
+      alert(t("fileTypeNotSupported"));
+      return;
+    }
+
     const extension = file.type.split("/")[1];
-
-    // Makes reference to the storage bucket location
-    // const storageRef = ref(storage,
-    //   `images/${auth.currentUser.uid}/${Date.now()}.${extension}`
-    // );
-
     const id = nanoid();
-
     const fileName: string = `${id}.${extension}`;
-
     const storageRef = ref(storage, fileName);
 
     setUploading(true);
@@ -71,13 +80,10 @@ export default function ImageUploader({ onComplete }) {
         // For instance, get the download URL: https://firebasestorage.googleapis.com/...
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
           const thumbnailURL = getThumbnailURL(downloadURL);
-          setImageURL(imageURL);
           setThumbnailURL(thumbnailURL);
           setUploading(false);
           onComplete({
-            id,
-            imageURL,
-            thumbnailURL,
+            id
           });
         })
       }
@@ -117,10 +123,10 @@ export default function ImageUploader({ onComplete }) {
       }
       {uploading && <h3>{progress}%</h3>}
 
-      {!uploading && !imageURL && (
+      {!uploading && (
         <>
           <label className="bg-gray-400 p-4 block cursor-pointer">
-            📸 Upload Image
+            {t("uploadFile")}
             <input
               type="file"
               onChange={uploadFile}
@@ -130,8 +136,6 @@ export default function ImageUploader({ onComplete }) {
           </label>
         </>
       )}
-
-      {/* {downloadURL && <CodeBlock code={`![alt](${downloadURL})`}></CodeBlock>} */}
 
       {thumbnailURL && !thumbnailReady && <>{t("loading")}</>}
 

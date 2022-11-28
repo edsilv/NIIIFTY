@@ -26,6 +26,8 @@ i18n
           email: "hello@mnemoscene.io",
           fileNotFound: "File not found",
           filesFound: "{{val}} files found.",
+          fileTooLarge: "File too large",
+          fileTypeNotSupported: "File type not supported",
           fullName: "Full name",
           fullNameCannotBeEmpty: "Full name cannot be empty",
           help: "Help",
@@ -54,6 +56,7 @@ i18n
           signOut: "Sign Out",
           siteName: "NIIIFTY",
           termsOfService: "Terms of Service",
+          uploadFile: "Upload File",
           usernameInvalid:
             "Please use 2 to 15 letters, numbers, underscores, or full stops. Underscores and full stops must not be at the start or end, or used sequentially.",
         },
