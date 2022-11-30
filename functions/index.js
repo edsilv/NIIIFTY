@@ -15,82 +15,106 @@ const web3StorageAPIKey = process.env.WEB3_STORAGE_API_KEY;
 const web3Storage = new Web3Storage({ token: web3StorageAPIKey });
 
 /**
- * When an image is uploaded in the Storage bucket we generate a thumbnail automatically using
+ * When a file is uploaded in the Storage bucket we generate a thumbnail automatically using
  * Sharp.
  */
-exports.generateThumbnail = functions.storage.object().onFinalize((object) => {
-	const fileBucket = object.bucket; // The Storage bucket that contains the file.
-	const filePath = object.name; // File path in the bucket.
-	const contentType = object.contentType; // File content type.
-	const downloadtoken = object.metadata ? object.metadata.firebaseStorageDownloadTokens : undefined; // Access token
+exports.generateThumbnail = functions.region('europe-west3')
+	.storage.object().onFinalize((object) => {
+		const fileBucket = object.bucket; // The Storage bucket that contains the file.
+		const filePath = object.name; // File path in the bucket.
+		const contentType = object.contentType; // File content type.
+		const downloadtoken = object.metadata ? object.metadata.firebaseStorageDownloadTokens : undefined; // Access token
 
-	// Exit if this is triggered on a file that is not an image.
-	if (!contentType.startsWith('image/')) {
-		functions.logger.log('rejecting: this is not an image.');
-		return null;
-	}
+		// todo: handle mp4, glb
 
-	// Get the file name.
-	const fileName = path.basename(filePath);
-	// Exit if the image is already a thumbnail.
-	if (fileName.startsWith('thumb_')) {
-		functions.logger.log('rejecting: already a thumbnail.');
-		return null;
-	}
-
-	// Download file from bucket.
-	const bucket = gcs.bucket(fileBucket);
-
-	const metadata = {
-		contentType: contentType,
-		metadata: {
-			firebaseStorageDownloadTokens: downloadtoken
+		// Exit if this is triggered on a file that is not an image.
+		if (!contentType.startsWith('image/')) {
+			functions.logger.log('rejecting: this is not an image.');
+			return null;
 		}
-	};
 
-	// console.log("downloadToken", downloadtoken);
-	// console.log("metadata", JSON.stringify(metadata, null, 2));
+		// Get the file name.
+		const fileName = path.basename(filePath);
+		// Exit if the image is already a thumbnail.
+		if (fileName.startsWith('thumb')) {
+			functions.logger.log('rejecting: already a thumbnail.');
+			return null;
+		}
 
-	// We add a 'thumb_' prefix to thumbnails file name. That's where we'll upload the thumbnail.
-	const thumbFileName = `thumb_${fileName}`;
-	const thumbFilePath = path.join(path.dirname(filePath), thumbFileName);
-	// Create write stream for uploading thumbnail
-	const thumbnailUploadStream = bucket.file(thumbFilePath).createWriteStream({ metadata });
+		// Download file from bucket.
+		const bucket = gcs.bucket(fileBucket);
 
-	// Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
-	const pipeline = sharp();
-	pipeline.resize({
-		width: THUMB_MAX_WIDTH,
-		height: THUMB_MAX_HEIGHT,
-		fit: sharp.fit.cover
-	}).pipe(thumbnailUploadStream);
+		const metadata = {
+			contentType: contentType,
+			metadata: {
+				firebaseStorageDownloadTokens: downloadtoken
+			}
+		};
 
-	bucket.file(filePath).createReadStream().pipe(pipeline);
+		// console.log("downloadToken", downloadtoken);
+		// console.log("metadata", JSON.stringify(metadata, null, 2));
 
-	return new Promise((resolve, reject) =>
-		thumbnailUploadStream.on('finish', resolve).on('error', reject));
-});
+		const thumbFileName = "thumb.png";
+		const thumbFilePath = path.join(path.dirname(filePath), thumbFileName);
+		// Create write stream for uploading thumbnail
+		const thumbnailUploadStream = bucket.file(thumbFilePath).createWriteStream({ metadata });
+
+		// Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
+		const pipeline = sharp();
+		pipeline.resize({
+			width: THUMB_MAX_WIDTH,
+			height: THUMB_MAX_HEIGHT,
+			fit: sharp.fit.cover,
+			format: 'png',
+		}).pipe(thumbnailUploadStream);
+
+		bucket.file(filePath).createReadStream().pipe(pipeline);
+
+		return new Promise((resolve, reject) =>
+			thumbnailUploadStream.on('finish', resolve).on('error', reject));
+	});
 
 // when a file is created, generate a thumbnail, and replicate the file to web3.storage
-exports.createFile = functions.firestore
+exports.addToWeb3Storage = functions.region('europe-west3')
+	.firestore
 	.document('files/{fileId}')
-	.onCreate((snap, context) => {
+	.onCreate(async (snap, context) => {
 		// Get an object representing the document
 		// e.g. {'name': 'Marie', 'age': 66}
 		// const newValue = snap.data();
-
 		// access a particular field as you would any JS property
 		// const name = newValue.name;
 
+		const fileId = context.params.fileId;
+		const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
+
+		// niiifty-bd2e2.appspot.com
+		const fileBucket = `${projectId}.appspot.com`;
+
+		// todo: find a file starting with "default" in the bucket
+		// hard coding default.png for now
+		// oMTICD9Q6QPmwTTzXKHi/default.png
+		const filePath = `${fileId}/default.png`;
+
+		// stream file from bucket
+		const file = {
+			name: filePath.split('/').pop(),
+			stream: () => gcs.bucket(fileBucket).file(filePath).createReadStream()
+		};
+
+		const cid = await web3Storage.put([file]);
+
 		return snap.ref.set({
-			cid: "mycid"
+			cid,
 		}, { merge: true });
 	});
 
-// exports.addImageToIPFS = functions.storage.object().onFinalize(async (object) => {
+// exports.addImageToIPFS = functions.region('europe-west3').storage.object().onFinalize(async (object) => {
 // 	const fileBucket = object.bucket; // The Storage bucket that contains the file.
 // 	const filePath = object.name; // File path in the bucket.
 // 	const contentType = object.contentType; // File content type.
+
+// 	console.log(fileBucket, filePath, contentType);
 
 // 	// Exit if this is triggered on a file that is not an image.
 // 	if (!contentType.startsWith('image/')) {

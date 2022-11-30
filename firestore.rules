@@ -13,11 +13,14 @@ service cloud.firestore {
         allow create: if isValidUsername(username);
       }
       
-      match /users/{userId}/files/{fileId} {
+      match /files/{fileId} {
       	allow read;
-        allow create: if canCreateFile(userId); 
-        allow update: if canUpdateFile(userId);
-        allow delete: if request.auth.uid == userId;
+        allow create;
+        allow update;
+        allow delete;
+        // allow create: if canCreateFile(userId); 
+        // allow update: if canUpdateFile(userId);
+        // allow delete: if request.auth.uid == userId;
       }
 
       // Users

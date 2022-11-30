@@ -34,7 +34,7 @@ export async function getServerSideProps({ query }) {
 }
 
 export default function FilePage(props: FileProps) {
-  const name: string = `NIIIFTY | ${props.file.name}`;
+  const name: string = `NIIIFTY | ${props.file.id}`;
   // const description: string = striptags(props.file.description);
 
   return (

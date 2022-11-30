@@ -22,7 +22,6 @@ export interface File {
   uid: string; // who created it (files are global, not stored in user's collection)
   modified: Timestamp;
   mimetype: MimeType;
-  name: string; // file name (auto-populated from file)
 }
 
 export type FileProps = {
@@ -34,7 +33,6 @@ export type FileProps = {
 // all of these props are required on save
 export type SavedFile = MandateProps<
   File,
-  | "name"
   | "mimetype"
   | "uid"
 >;

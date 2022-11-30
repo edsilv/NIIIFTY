@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  setDoc,
   updateDoc,
 } from "firebase/firestore";
 import { File } from "@/utils/Types";
@@ -17,7 +18,7 @@ export class UserAdapter {
     this.user = user;
   }
 
-  async addFile(values: Partial<File>) {
+  async addFile(id: string, values: Partial<File>) {
     const file = {
       ...values,
       created: timestamp(),
@@ -25,9 +26,8 @@ export class UserAdapter {
       softwareVersion: packageJSON.version,
     };
 
-    const { id } = await addDoc(collection(db, this.getAddFilePath()), file);
-
-    return id;
+    const docRef = doc(collection(db, this.getAddFilePath()), id);
+    return await setDoc(docRef, file);
   }
 
   async updateFile(id: string, values: Partial<File>) {
@@ -45,6 +45,10 @@ export class UserAdapter {
   getAddFilePath() {
     return "files";
   }
+
+  // getAddFilePath(id: string) {
+  //   return `files/${id}`;
+  // }
 
   getFilePath(id: string) {
     return `files/${id}`;

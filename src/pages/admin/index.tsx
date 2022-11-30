@@ -82,7 +82,7 @@ const FileList = () => {
                         target="_blank"
                         className="text-blue-600 no-underline duration-500 hover:text-blue-900"
                       > */}
-                      {file.name}
+                      {file.id}
                       {/* </a> */}
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
@@ -108,7 +108,7 @@ const FileList = () => {
                           if (
                             window.confirm(
                               t("confirmFileDeletion", {
-                                title: file.name,
+                                title: file.id,
                               })
                             )
                           ) {

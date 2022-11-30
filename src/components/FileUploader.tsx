@@ -3,23 +3,26 @@ import { useEffect, useRef, useState } from "react";
 import { storage } from "../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
-import { nanoid } from "nanoid";
+// import { nanoid } from "nanoid";
 import { MIMETYPES } from "../utils/Types";
 
 function getThumbnailURL(fileURL: string) {
-  const fileName = fileURL.split('/').pop();
-  const thumbnailURL = fileURL.replace(fileName, "thumb_" + fileName);
+  // const fileName = decodeURIComponent(fileURL).split('/').pop();
+  const thumbnailURL = fileURL.replace("default.png", "thumb.png");
   return thumbnailURL;
 }
 
 // Uploads images to Firebase Storage
-export default function FileUploader({ onComplete }) {
+export default function FileUploader({ id, onComplete }: {
+  id: string;
+  onComplete: () => void;
+}) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  // const [imageURL, setImageURL] = useState(null);
   const [thumbnailURL, setThumbnailURL] = useState(null);
   const [thumbnailReady, setThumbnailReady] = useState(false);
+  const MAX_FILE_SIZE = 524288000; // 500MB
 
   // Creates a Firebase Upload Task
   const uploadFile = async (e) => {
@@ -27,23 +30,20 @@ export default function FileUploader({ onComplete }) {
     const file = Array.from(e.target.files)[0] as any;
 
     // check max size (500mb)
-    if (file.size > 524288000) {
+    if (file.size > MAX_FILE_SIZE) {
       alert(t("fileTooLarge"));
       return;
     }
 
     // check file type
-    if (!(file.type === MIMETYPES.GLB ||
-      file.type === MIMETYPES.JPG ||
-      file.type === MIMETYPES.MP4 ||
-      file.type === MIMETYPES.PNG)) {
+    if (!Object.values(MIMETYPES).includes(file.type)) {
       alert(t("fileTypeNotSupported"));
       return;
     }
 
     const extension = file.type.split("/")[1];
-    const id = nanoid();
-    const fileName: string = `${id}.${extension}`;
+    // const id = nanoid();
+    const fileName: string = `${id}/default.${extension}`;
     const storageRef = ref(storage, fileName);
 
     setUploading(true);
@@ -82,9 +82,7 @@ export default function FileUploader({ onComplete }) {
           const thumbnailURL = getThumbnailURL(downloadURL);
           setThumbnailURL(thumbnailURL);
           setUploading(false);
-          onComplete({
-            id
-          });
+          onComplete();
         })
       }
     );
@@ -131,7 +129,7 @@ export default function FileUploader({ onComplete }) {
               type="file"
               onChange={uploadFile}
               className="hidden"
-              accept="image/x-png,image/gif,image/jpeg"
+              accept="image/x-png,image/jpeg,video/mp4,model/gltf-binary"
             />
           </label>
         </>
