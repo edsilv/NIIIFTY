@@ -88,7 +88,7 @@ async function createThumbnail(file) {
 	// 	}
 	// };
 
-	const thumbFilePath = path.join(path.dirname(file.name), "thumb.png");
+	const thumbFilePath = path.join(path.dirname(file.name), "thumb.jpg");
 	// Create write stream for uploading thumbnail
 	// const thumbnailUploadStream = gcsBucket.file(thumbFilePath).createWriteStream({ metadata });
 	const thumbnailUploadStream = gcsBucket.file(thumbFilePath).createWriteStream();
@@ -99,7 +99,7 @@ async function createThumbnail(file) {
 		width: THUMB_MAX_WIDTH,
 		height: THUMB_MAX_HEIGHT,
 		fit: sharp.fit.cover,
-		format: 'png',
+		format: 'jpeg',
 	}).pipe(thumbnailUploadStream);
 
 	gcsBucket.file(file.name).createReadStream().pipe(pipeline);
@@ -134,9 +134,10 @@ exports.fileCreated = functions.region('europe-west3')
 		const fileId = context.params.fileId;
 		const [files] = await gcsBucket.getFiles();
 		// get a reference to the uploaded default.[png, jpg, mp4, glb] file
-		const defaultFile = files.find(file => file.name.startsWith(`${fileId}/default`));
+		const defaultFile = files.find(file => file.name.startsWith(`public/${fileId}/default`));
 
 		if (defaultFile) {
+			// todo: if it's a tiff, convert it to a webscale default.jpg and delete the tiff
 			await createThumbnail(defaultFile);
 			const cid = await addToWeb3Storage(defaultFile);
 

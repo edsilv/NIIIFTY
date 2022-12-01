@@ -7,13 +7,12 @@ import { useTranslation } from "react-i18next";
 import { MIMETYPES } from "../utils/Types";
 
 function getThumbnailURL(fileURL: string) {
-  // const fileName = decodeURIComponent(fileURL).split('/').pop();
-  debugger;
-  const thumbnailURL = fileURL.replace("default.png", "thumb.png");
+  const regex = /.*public%2F.*%2F/i;
+  const parentDirectoryPath = regex.exec(fileURL)[0];
+  const thumbnailURL = parentDirectoryPath + "thumb.jpg?alt=media";
   return thumbnailURL;
 }
 
-// Uploads images to Firebase Storage
 export default function FileUploader({ id, onComplete }: {
   id: string;
   onComplete: () => void;
@@ -43,8 +42,7 @@ export default function FileUploader({ id, onComplete }: {
     }
 
     const extension = file.type.split("/")[1];
-    // const id = nanoid();
-    const fileName: string = `${id}/default.${extension}`;
+    const fileName: string = `public/${id}/default.${extension}`;
     const storageRef = ref(storage, fileName);
 
     setUploading(true);
