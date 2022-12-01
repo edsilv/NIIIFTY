@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hash } from './utils/Utils';
+import { hash2 } from './utils/Utils';
 
 export const config = {
   matcher: ['/', '/index'],
@@ -15,7 +15,7 @@ export function middleware(req: NextRequest) {
     const [user, pwd] = atob(authValue).split(':');
 
     // clear in chrome://settings/passwords
-    if (hash(user) === -877169473 && hash(pwd) === -1361217365) {
+    if (hash2(user) === -877169473 && hash2(pwd) === -1361217365) {
       return NextResponse.next();
     }
   }

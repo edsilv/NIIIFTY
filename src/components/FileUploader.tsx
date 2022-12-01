@@ -8,6 +8,7 @@ import { MIMETYPES } from "../utils/Types";
 
 function getThumbnailURL(fileURL: string) {
   // const fileName = decodeURIComponent(fileURL).split('/').pop();
+  debugger;
   const thumbnailURL = fileURL.replace("default.png", "thumb.png");
   return thumbnailURL;
 }

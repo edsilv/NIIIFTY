@@ -31,12 +31,12 @@ export const slugify = (title: string): string => {
 };
 
 // crypto module doesn't work in middleware yet https://github.com/frontegg/frontegg-nextjs/issues/95
-// export const hash = (value: string) => {
-//   return crypto.createHash("sha1").update(value).digest("hex");
-// };
+export const hash = (value: string) => {
+  return crypto.createHash("sha1").update(value).digest("hex");
+};
 
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript/34842797#34842797
-export const hash = (value: string) => {
+export const hash2 = (value: string) => {
   return value.split('').reduce((prevHash, currVal) =>
     (((prevHash << 5) - prevHash) + currVal.charCodeAt(0)) | 0, 0);
 }
