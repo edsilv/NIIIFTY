@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { storage } from "../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
-// import { nanoid } from "nanoid";
 import { MIMETYPES } from "../utils/Types";
 
 function getThumbnailURL(fileURL: string) {
@@ -42,7 +41,7 @@ export default function FileUploader({ id, onComplete }: {
     }
 
     const extension = file.type.split("/")[1];
-    const fileName: string = `public/${id}/default.${extension}`;
+    const fileName: string = `public/${id}/original.${extension}`;
     const storageRef = ref(storage, fileName);
 
     setUploading(true);
@@ -82,7 +81,7 @@ export default function FileUploader({ id, onComplete }: {
           setThumbnailURL(thumbnailURL);
           setUploading(false);
           onComplete();
-        })
+        });
       }
     );
   };
@@ -107,7 +106,7 @@ export default function FileUploader({ id, onComplete }: {
       // @ts-ignore
       thumbRef.current.onload = () => {
         setThumbnailReady(true);
-      }
+      };
       // @ts-ignore
       thumbRef.current.src = thumbnailURL;
     }
@@ -128,7 +127,7 @@ export default function FileUploader({ id, onComplete }: {
               type="file"
               onChange={uploadFile}
               className="hidden"
-              accept="image/x-png,image/jpeg,video/mp4,model/gltf-binary"
+              accept="image/x-png,image/jpeg,image/tif,image/tiff,video/mp4,model/gltf-binary"
             />
           </label>
         </>
