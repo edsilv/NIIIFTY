@@ -1,5 +1,6 @@
 import { UserAdapter } from "@/hooks/UserAdapter";
 import { Timestamp } from "firebase/firestore";
+import { Dispatch } from "react";
 
 // https://lorefnon.tech/2020/02/02/conditionally-making-optional-properties-mandatory-in-typescript/
 type MandateProps<T extends {}, K extends keyof T> = Omit<T, K> & {
@@ -9,6 +10,8 @@ type MandateProps<T extends {}, K extends keyof T> = Omit<T, K> & {
 export const MIMETYPES = {
   PNG: "image/png",
   JPG: "image/jpeg",
+  TIF: "image/tif",
+  TIFF: "image/tiff",
   MP4: "video/mp4",
   GLB: "model/gltf-binary",
 } as const;
@@ -21,7 +24,9 @@ export interface File {
   created: Timestamp;
   uid: string; // who created it (files are global, not stored in user's collection)
   modified: Timestamp;
-  mimetype: MimeType;
+  type: MimeType;
+  title: string;
+  description: string;
 }
 
 export type FileProps = {
@@ -33,8 +38,9 @@ export type FileProps = {
 // all of these props are required on save
 export type SavedFile = MandateProps<
   File,
-  | "mimetype"
   | "uid"
+  | "type"
+  | "title"
 >;
 
 // loaded when authoring an file
@@ -42,9 +48,24 @@ export interface AuthoringFile extends SavedFile {
   id?: string;
 }
 
-// export type FileTuple = [string, File];
-// export type PartialFileTuple = [string, Partial<File>];
-// export type FileMap = Map<string, File>;
+export type AuthoringFileState = {
+  error: boolean;
+  file: AuthoringFile | null;
+  id: string;
+  initialised: boolean;
+  syncing: boolean;
+};
+
+export type AuthoringFileContextState = {
+  state: AuthoringFileState | null;
+  dispatch: Dispatch<AuthoringFileAction> | null;
+};
+
+export type AuthoringFileAction =
+  | { type: "delete"; }
+  | { type: "error"; }
+  | { type: "reset"; }
+  | { type: "sync"; payload: AuthoringFile; };
 
 export interface UseDocumentOptions<T> {
   onData?: (data: T) => void;

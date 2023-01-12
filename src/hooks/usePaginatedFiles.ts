@@ -5,21 +5,27 @@ import {
   orderBy,
   query,
   startAfter,
+  where,
 } from "firebase/firestore";
 import { db } from "@/utils/Firebase";
 import { useEffect, useState } from "react";
 import { fileToJson } from "@/utils/Utils";
-import { File } from "@/utils/Types";
+import { AuthoringFile, SavedFile } from "@/utils/Types";
+import { migrateFile } from "@/utils/Migration";
 
 export const usePaginatedFiles = (
   user,
   page: number = 0,
   pageSize: number = 10
-): [files: File[], allLoaded: boolean, loading: boolean] => {
-  const [files, setExhibits] = useState<File[]>([]);
+): [files: AuthoringFile[], allLoaded: boolean, loading: boolean] => {
+  const [files, setExhibits] = useState<AuthoringFile[]>([]);
   const [lastVisible, setLastVisible] = useState({});
   const [allLoaded, setAllLoaded] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+
+  function formatFile(file: any) {
+    return fileToJson(migrateFile(file) as SavedFile);
+  }
 
   useEffect(() => {
     let unsubscribe;
@@ -27,16 +33,16 @@ export const usePaginatedFiles = (
     setLoading(true);
 
     const firstPage = query(
-      collection(db, `users/${user.uid}/files`),
+      collection(db, "files"),
+      where("uid", "==", user.uid),
       orderBy("modified", "desc"),
       limit(pageSize)
     );
 
     unsubscribe = onSnapshot(firstPage, (results) => {
       setLoading(false);
-      setExhibits(
-        results.docs.map((doc) => fileToJson({ ...doc.data(), id: doc.id }))
-      );
+      const newExhibits: any = results.docs.map((doc) => formatFile({ ...doc.data(), id: doc.id }));
+      setExhibits(newExhibits);
       setLastVisible(results.docs[results.docs.length - 1]);
     });
 
@@ -52,7 +58,8 @@ export const usePaginatedFiles = (
       setLoading(true);
 
       const nextPage = query(
-        collection(db, `users/${user.uid}/files`),
+        collection(db, "files"),
+        where("uid", "==", user.uid),
         orderBy("modified", "desc"),
         startAfter(lastVisible),
         limit(pageSize)
@@ -63,12 +70,13 @@ export const usePaginatedFiles = (
         if (results.docs.length === 0) {
           setAllLoaded(true);
         } else {
-          setExhibits([
+          const newFiles: any = [
             ...files,
             ...results.docs.map((doc) =>
-              fileToJson({ ...doc.data(), id: doc.id })
+              formatFile({ ...doc.data(), id: doc.id })
             ),
-          ]);
+          ];
+          setExhibits(newFiles);
           setLastVisible(results.docs[results.docs.length - 1]);
         }
       });

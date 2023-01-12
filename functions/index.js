@@ -87,7 +87,7 @@ exports.fileCreated = functions.region('europe-west3')
 		const fileId = context.params.fileId;
 		const [files] = await gcsBucket.getFiles();
 		// get a reference to the uploaded original.[png, jpg, mp4, glb] file
-		const originalFile = files.find(file => file.name.startsWith(`public/${fileId}/original`));
+		const originalFile = files.find(file => file.name.startsWith(`files/${fileId}/original`));
 
 		if (originalFile) {
 

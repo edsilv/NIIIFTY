@@ -1,10 +1,12 @@
 import AuthCheck from "@/components/AuthCheck";
-import FileUploader from "@/components/FileUploader";
-import { useContext, useState } from "react";
+import FileUploader from "@/components/files/FileUploader";
+import { useContext } from "react";
 import { add } from "@/hooks/useFile";
 import { UserContext } from "@/utils/UserContext";
 import { db } from "@/utils/Firebase";
 import { collection, doc } from "firebase/firestore";
+import { MimeType } from "@/utils/Types";
+import path from "path";
 
 export default function CreateExhibitPage(_props) {
   return <AuthCheck signedInContent={<CreateFile />}></AuthCheck>;
@@ -17,14 +19,19 @@ function CreateFile() {
   const id = doc(collection(db, "files")).id;
 
   return <div>
-    <FileUploader id={id} onComplete={async () => {
+    <FileUploader id={id} onComplete={async (file: File) => {
 
-      // create file in firestore
+      // file is now in cloud storage
+      // create a file record in firestore (triggers cloud function to generate derivatives)
       const fileid = await add(userAdapter!, id, {
         uid: user.uid,
+        type: file.type as MimeType,
+        title: path.basename(file.name, path.extname(file.name))
       });
 
-      console.log("added file", fileid);
+      // redirect to the edit page for the new file
+      window.location.href = `/admin/${fileid}`;
+      //console.log("added file", file);
     }} />
   </div>;
 }

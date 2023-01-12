@@ -1,5 +1,7 @@
 import { default as slug } from "slugify";
 import crypto from "crypto";
+import { SavedFile } from "./Types";
+import config from "../../niiifty.config";
 
 // stackoverflow.com/questions/1322732/convert-seconds-to-hh-mm-ss-with-javascript
 export const toHHMMSS = (seconds: number) => {
@@ -7,7 +9,7 @@ export const toHHMMSS = (seconds: number) => {
   return new Date(seconds * 1000).toISOString().substr(11, 8);
 };
 
-export const fileToJson = (file) => {
+export const fileToJson = (file: SavedFile) => {
   return {
     ...file,
     created: file.created?.toMillis() || 0,
@@ -39,4 +41,10 @@ export const hash = (value: string) => {
 export const hash2 = (value: string) => {
   return value.split('').reduce((prevHash, currVal) =>
     (((prevHash << 5) - prevHash) + currVal.charCodeAt(0)) | 0, 0);
-}
+};
+
+export const getFileUrl = (name: string) => {
+  // name example: BgV2gRaOStRzwc6uMTZu/original.jpeg
+  const firebaseConfig = config.environments[config.environment].firebaseConfig;
+  return `https://${firebaseConfig.storageBucket}.storage.googleapis.com/${name}`;
+};

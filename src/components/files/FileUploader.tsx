@@ -1,9 +1,8 @@
 import cx from "classnames";
-import { useEffect, useRef, useState } from "react";
-import { storage } from "../utils/Firebase";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { storage } from "../../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
-import { MIMETYPES } from "../utils/Types";
 
 function getThumbnailURL(fileURL: string) {
   const regex = /.*public%2F.*%2F/i;
@@ -14,7 +13,7 @@ function getThumbnailURL(fileURL: string) {
 
 export default function FileUploader({ id, onComplete }: {
   id: string;
-  onComplete: () => void;
+  onComplete: (file: File) => void;
 }) {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
@@ -24,9 +23,9 @@ export default function FileUploader({ id, onComplete }: {
   const MAX_FILE_SIZE = 524288000; // 500MB
 
   // Creates a Firebase Upload Task
-  const uploadFile = async (e) => {
+  const uploadFile = async (e: ChangeEvent<HTMLInputElement>) => {
     // Get the file
-    const file = Array.from(e.target.files)[0] as any;
+    const file: File = Array.from(e.target.files)[0];
 
     // check max size (500mb)
     if (file.size > MAX_FILE_SIZE) {
@@ -34,11 +33,11 @@ export default function FileUploader({ id, onComplete }: {
       return;
     }
 
-    // check file type
-    if (!Object.values(MIMETYPES).includes(file.type)) {
-      alert(t("fileTypeNotSupported"));
-      return;
-    }
+    // check file type (not necessary)
+    // if (!Object.values(MIMETYPES).includes(file.type)) {
+    //   alert(t("fileTypeNotSupported"));
+    //   return;
+    // }
 
     const extension = file.type.split("/")[1];
     const fileName: string = `public/${id}/original.${extension}`;
@@ -80,7 +79,7 @@ export default function FileUploader({ id, onComplete }: {
           const thumbnailURL = getThumbnailURL(downloadURL);
           setThumbnailURL(thumbnailURL);
           setUploading(false);
-          onComplete();
+          onComplete(file);
         });
       }
     );

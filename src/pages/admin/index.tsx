@@ -87,9 +87,9 @@ const FileList = () => {
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
                       {`${new Date(
-                        file.modified.toMillis()
+                        file.modified
                       ).toLocaleDateString()} | ${new Date(
-                        file.modified.toMillis()
+                        file.modified
                       ).toLocaleTimeString()}`}
                     </td>
                     <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
