@@ -48,3 +48,7 @@ export const getFileUrl = (name: string) => {
   const firebaseConfig = config.environments[config.environment].firebaseConfig;
   return `https://${firebaseConfig.storageBucket}.storage.googleapis.com/${name}`;
 };
+
+export const getThumbnailUrl = (id: string) => {
+  return getFileUrl(`${id}/thumb.jpg`);
+};

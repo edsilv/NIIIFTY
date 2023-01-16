@@ -3,13 +3,7 @@ import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { storage } from "../../utils/Firebase";
 import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
-
-function getThumbnailURL(fileURL: string) {
-  const regex = /.*public%2F.*%2F/i;
-  const parentDirectoryPath = regex.exec(fileURL)[0];
-  const thumbnailURL = parentDirectoryPath + "thumb.jpg?alt=media";
-  return thumbnailURL;
-}
+import { getThumbnailUrl } from "@/utils/Utils";
 
 export default function FileUploader({ id, onComplete }: {
   id: string;
@@ -40,7 +34,7 @@ export default function FileUploader({ id, onComplete }: {
     // }
 
     const extension = file.type.split("/")[1];
-    const fileName: string = `public/${id}/original.${extension}`;
+    const fileName: string = `${id}/original.${extension}`;
     const storageRef = ref(storage, fileName);
 
     setUploading(true);
@@ -75,41 +69,41 @@ export default function FileUploader({ id, onComplete }: {
       () => {
         // Handle successful uploads on complete
         // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          const thumbnailURL = getThumbnailURL(downloadURL);
-          setThumbnailURL(thumbnailURL);
-          setUploading(false);
-          onComplete(file);
-        });
+        //getDownloadURL(uploadTask.snapshot.ref).then(() => {
+        //const thumbnailURL = getThumbnailUrl(id);
+        //setThumbnailURL(thumbnailURL);
+        setUploading(false);
+        onComplete(file);
+        //});
       }
     );
   };
 
   const thumbRef = useRef();
 
-  useEffect(() => {
-    // when the thumbnailURL is set, keep trying to load the image until it succeeds
+  // useEffect(() => {
+  //   // when the thumbnailURL is set, keep trying to load the image until it succeeds
 
-    if (thumbRef.current) {
-      const timestamp = Date.now();
+  //   if (thumbRef.current) {
+  //     const timestamp = Date.now();
 
-      // @ts-ignore
-      thumbRef.current.onerror = () => {
-        if (Date.now() - timestamp < 10000) {
-          setTimeout(() => {
-            // @ts-ignore
-            thumbRef.current.src = thumbnailURL;
-          }, 1000);
-        }
-      };
-      // @ts-ignore
-      thumbRef.current.onload = () => {
-        setThumbnailReady(true);
-      };
-      // @ts-ignore
-      thumbRef.current.src = thumbnailURL;
-    }
-  }, [thumbnailURL]);
+  //     // @ts-ignore
+  //     thumbRef.current.onerror = () => {
+  //       if (Date.now() - timestamp < 10000) {
+  //         setTimeout(() => {
+  //           // @ts-ignore
+  //           thumbRef.current.src = thumbnailURL;
+  //         }, 1000);
+  //       }
+  //     };
+  //     // @ts-ignore
+  //     thumbRef.current.onload = () => {
+  //       setThumbnailReady(true);
+  //     };
+  //     // @ts-ignore
+  //     thumbRef.current.src = thumbnailURL;
+  //   }
+  // }, [thumbnailURL]);
 
   return (
     <div>
@@ -132,11 +126,11 @@ export default function FileUploader({ id, onComplete }: {
         </>
       )}
 
-      {thumbnailURL && !thumbnailReady && <>{t("loading")}</>}
+      {/* {thumbnailURL && !thumbnailReady && <>{t("loading")}</>}
 
       {thumbnailURL && <img ref={thumbRef} className={cx({
         "hidden": !thumbnailReady
-      })} />}
+      })} />} */}
     </div>
   );
 }

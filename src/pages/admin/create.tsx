@@ -23,14 +23,14 @@ function CreateFile() {
 
       // file is now in cloud storage
       // create a file record in firestore (triggers cloud function to generate derivatives)
-      const fileid = await add(userAdapter!, id, {
+      add(userAdapter!, id, {
         uid: user.uid,
         type: file.type as MimeType,
         title: path.basename(file.name, path.extname(file.name))
       });
 
       // redirect to the edit page for the new file
-      window.location.href = `/admin/${fileid}`;
+      window.location.href = `/admin/${id}`;
       //console.log("added file", file);
     }} />
   </div>;

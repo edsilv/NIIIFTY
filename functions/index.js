@@ -25,6 +25,7 @@ async function resizeImage(image, name, width, height) {
 
 	// Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
 	const pipeline = sharp();
+
 	pipeline.resize({
 		width,
 		height,
@@ -85,11 +86,13 @@ exports.fileCreated = functions.region('europe-west3')
 		// const name = newValue.name;
 
 		const fileId = context.params.fileId;
-		const [files] = await gcsBucket.getFiles();
 		// get a reference to the uploaded original.[png, jpg, mp4, glb] file
-		const originalFile = files.find(file => file.name.startsWith(`files/${fileId}/original`));
+		const [files] = await gcsBucket.getFiles({ prefix: `${fileId}/original` });
+		// get a reference to the uploaded original.[png, jpg, mp4, glb] file
+		// const originalFile = files.find(file => file.name.startsWith(`${fileId}/original`));
 
-		if (originalFile) {
+		if (files.length) {
+			const originalFile = files[0];
 
 			// todo: switch on file mime type, and generate derivatives accordingly
 
@@ -108,6 +111,22 @@ exports.fileCreated = functions.region('europe-west3')
 				cid,
 			}, { merge: true });
 		}
+	});
+
+exports.fileDeleted = functions.region('europe-west3')
+	.runWith({
+		timeoutSeconds: 300,
+		memory: '1GB'
+	})
+	.firestore
+	.document('files/{fileId}')
+	.onDelete(async (_snap, context) => {
+		const fileId = context.params.fileId;
+
+		// https://googleapis.dev/nodejs/storage/latest/Bucket.html#deleteFiles
+		gcsBucket.deleteFiles({
+			prefix: `${fileId}`
+		});
 	});
 
 /**

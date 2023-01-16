@@ -9,6 +9,7 @@ import { useMounted } from "@/hooks/useMounted";
 import Alert from "../Alert";
 import { AuthoringFileContext } from "@/utils/AuthoringFileContext";
 import { getFileUrl } from "@/utils/Utils";
+import ImageWithRetry from "../ImageWithRetry";
 
 export function EditFile({ id }: {
   id: string;
@@ -167,7 +168,7 @@ export function EditFile({ id }: {
               {/* description */}
               <p>{state.file.description}</p>
               {/* thumbnail */}
-              <img src={getFileUrl(`${state.file.id}/thumb.jpg`)} alt={state.file.title} />
+              <ImageWithRetry src={getFileUrl(`${state.file.id}/thumb.jpg`)} alt={state.file.title} width="90" />
             </form>
           ))}
       </AuthoringFileContext.Provider>
