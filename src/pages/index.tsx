@@ -1,4 +1,4 @@
-import CreateFileButton from "@/components/CreateFileButton";
+import CreateFileButton from "@/components/UploadFileButton";
 // import Link from "@/components/Link";
 import Metatags from "@/components/Metatags";
 import { hash } from "@/utils/Utils";

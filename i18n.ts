@@ -18,8 +18,6 @@ i18n
             'Are you sure you want to change the title? This will mean that all existing links to "{{slug}}" will no longer work',
           contact: "Contact",
           createAccount: "Create Account",
-          createAFile: "Create a File",
-          createFile: "Create File",
           delete: "Delete",
           docs: "Docs",
           edit: "Edit",
@@ -56,7 +54,9 @@ i18n
           signOut: "Sign Out",
           siteName: "NIIIFTY",
           termsOfService: "Terms of Service",
+          title: "Title",
           uploadFile: "Upload File",
+          uploadAFile: "Upload a File",
           usernameInvalid:
             "Please use 2 to 15 letters, numbers, underscores, or full stops. Underscores and full stops must not be at the start or end, or used sequentially.",
         },

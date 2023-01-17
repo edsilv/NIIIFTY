@@ -1,9 +1,7 @@
-import cx from "classnames";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { storage } from "../../utils/Firebase";
-import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
+import { ref, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
-import { getThumbnailUrl } from "@/utils/Utils";
 
 export default function FileUploader({ id, onComplete }: {
   id: string;
@@ -12,8 +10,8 @@ export default function FileUploader({ id, onComplete }: {
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [thumbnailURL, setThumbnailURL] = useState(null);
-  const [thumbnailReady, setThumbnailReady] = useState(false);
+  // const [thumbnailURL, setThumbnailURL] = useState(null);
+  // const [thumbnailReady, setThumbnailReady] = useState(false);
   const MAX_FILE_SIZE = 524288000; // 500MB
 
   // Creates a Firebase Upload Task
@@ -80,30 +78,6 @@ export default function FileUploader({ id, onComplete }: {
   };
 
   const thumbRef = useRef();
-
-  // useEffect(() => {
-  //   // when the thumbnailURL is set, keep trying to load the image until it succeeds
-
-  //   if (thumbRef.current) {
-  //     const timestamp = Date.now();
-
-  //     // @ts-ignore
-  //     thumbRef.current.onerror = () => {
-  //       if (Date.now() - timestamp < 10000) {
-  //         setTimeout(() => {
-  //           // @ts-ignore
-  //           thumbRef.current.src = thumbnailURL;
-  //         }, 1000);
-  //       }
-  //     };
-  //     // @ts-ignore
-  //     thumbRef.current.onload = () => {
-  //       setThumbnailReady(true);
-  //     };
-  //     // @ts-ignore
-  //     thumbRef.current.src = thumbnailURL;
-  //   }
-  // }, [thumbnailURL]);
 
   return (
     <div>

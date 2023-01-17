@@ -1,6 +1,5 @@
 import { db, timestamp } from "@/utils/Firebase";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -19,8 +18,9 @@ export class UserAdapter {
   }
 
   async addFile(id: string, values: Partial<File>) {
-    const file = {
+    const file: Partial<File> = {
       ...values,
+      license: "https://creativecommons.org/publicdomain/zero/1.0/",
       created: timestamp(),
       modified: timestamp(),
       softwareVersion: packageJSON.version,

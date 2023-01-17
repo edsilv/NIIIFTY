@@ -27,6 +27,9 @@ export interface File {
   type: MimeType;
   title: string;
   description: string;
+  attribution: string;
+  license: LicenseURL;
+  softwareVersion?: string;
 }
 
 export type FileProps = {
@@ -41,6 +44,7 @@ export type SavedFile = MandateProps<
   | "uid"
   | "type"
   | "title"
+  | "license"
 >;
 
 // loaded when authoring an file
@@ -124,4 +128,17 @@ export type ChildCollectionModifiers<T> = {
     type: string | null,
     collectionItemIds: string[]
   ) => void;
+};
+
+export type LicenseURL = "https://creativecommons.org/publicdomain/zero/1.0/" |
+  "https://creativecommons.org/licenses/by/4.0/" |
+  "https://creativecommons.org/licenses/by-sa/4.0/" |
+  "https://creativecommons.org/licenses/by-nd/4.0/" |
+  "https://creativecommons.org/licenses/by-nc/4.0/" |
+  "https://creativecommons.org/licenses/by-nc-sa/4.0/" |
+  "https://creativecommons.org/licenses/by-nc-nd/4.0/";
+
+export type License = {
+  name: string;
+  url: LicenseURL;
 };

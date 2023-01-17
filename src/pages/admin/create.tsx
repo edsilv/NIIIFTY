@@ -23,7 +23,7 @@ function CreateFile() {
 
       // file is now in cloud storage
       // create a file record in firestore (triggers cloud function to generate derivatives)
-      add(userAdapter!, id, {
+      await add(userAdapter!, id, {
         uid: user.uid,
         type: file.type as MimeType,
         title: path.basename(file.name, path.extname(file.name))

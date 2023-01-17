@@ -4,7 +4,9 @@ import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { remove } from "@/hooks/useFile";
 import { usePaginatedFiles } from "@/hooks/usePaginatedFiles";
-import CreateFileButton from "@/components/CreateFileButton";
+import CreateFileButton from "@/components/UploadFileButton";
+import ImageWithRetry from "@/components/ImageWithRetry";
+import { getFileUrl } from "@/utils/Utils";
 
 export default function AdminPage(_props) {
   return <AuthCheck signedInContent={<Admin />}></AuthCheck>;
@@ -51,6 +53,10 @@ const FileList = () => {
                 <tr>
                   <th
                     scope="col"
+                  >
+                  </th>
+                  <th
+                    scope="col"
                     className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900"
                   >
                     <>{t("title")}</>
@@ -76,13 +82,18 @@ const FileList = () => {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {files.map((file) => (
                   <tr key={file.id}>
+                    <td>
+                      <div className="w-24 px-2 py-1">
+                        <ImageWithRetry src={getFileUrl(`${file.id}/thumb.jpg`)} alt={file.title} />
+                      </div>
+                    </td>
                     <td className="w-full max-w-0 py-4 pr-3 pl-4 text-sm font-medium text-gray-900">
                       {/* <a
                         href={`/${username}/${slugify(file.name)}`}
                         target="_blank"
                         className="text-blue-600 no-underline duration-500 hover:text-blue-900"
                       > */}
-                      {file.id}
+                      {file.title}
                       {/* </a> */}
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
