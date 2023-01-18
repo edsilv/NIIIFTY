@@ -6,10 +6,10 @@ const CopyText = ({ id, text }: { id: string; text: string; }) => {
   const [copied, setCopied] = useState(false);
 
   const inputClasses = classNames(
-    "border-b border-gray-300 bg-transparent py-2 pl-4 font-light text-gray-600 ring-blue-500 focus:rounded-md focus:outline-none focus:ring-1 w-9/12"
+    "border-b border-gray-300 bg-transparent py-2 pl-4 font-light text-gray-600 ring-blue-500 focus:outline-none focus:ring-1 w-9/12 dark:text-white dark:border-gray-500"
   );
   const buttonClasses = classNames(
-    "transition duration-300 bg-black hover:bg-white hover:text-black text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring rounded-l-none w-3/12 shadow-md"
+    "transition duration-300 bg-black hover:bg-white hover:text-black text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring rounded-l-none w-3/12 shadow-md dark:bg-white dark:text-black"
   );
 
   const inputRef = useRef<HTMLInputElement>(null);

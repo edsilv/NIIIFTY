@@ -105,7 +105,7 @@ export const useAuthoringFile: UseDocument<
       };
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data]);
+    }, [data, loading]);
 
     return [file as AuthoringFile, modifiers];
   };

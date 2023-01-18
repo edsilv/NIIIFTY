@@ -47,9 +47,9 @@ const FileList = () => {
       </div>
       {files.length > 0 && (
         <>
-          <div className="mt-8 overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:mx-0 md:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-100">
+          <div className="mt-8 overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-600 md:mx-0 md:rounded-lg">
+            <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+              <thead className="bg-gray-100 dark:bg-gray-600">
                 <tr>
                   <th
                     scope="col"
@@ -57,13 +57,13 @@ const FileList = () => {
                   </th>
                   <th
                     scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900"
+                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100"
                   >
                     <>{t("title")}</>
                   </th>
                   <th
                     scope="col"
-                    className="hidden px-12 py-3.5 text-left text-sm font-semibold text-gray-900 lg:table-cell"
+                    className="hidden px-12 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 lg:table-cell"
                   >
                     <>{t("modified")}</>
                   </th>
@@ -79,11 +79,11 @@ const FileList = () => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                 {files.map((file) => (
                   <tr key={file.id}>
                     <td>
-                      <a className="block w-24 px-2 py-1" href={`/admin/${file.id}`}>
+                      <a className="block w-24 px-2 py-2" href={`/admin/${file.id}`}>
                         <ImageWithRetry src={getFileUrl(`${file.id}/thumb.jpg`)} alt={file.title} />
                       </a>
                     </td>
@@ -96,7 +96,7 @@ const FileList = () => {
                       <a className="no-underline" href={`/admin/${file.id}`}>{file.title}</a>
                       {/* </a> */}
                     </td>
-                    <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
+                    <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-400 lg:table-cell">
                       {`${new Date(
                         file.modified
                       ).toLocaleDateString()} | ${new Date(
@@ -126,7 +126,7 @@ const FileList = () => {
                             remove(userAdapter, file.id);
                           }
                         }}
-                        className="text-blue-600 duration-500 hover:text-blue-900"
+                        className="text-blue-600 duration-500 hover:text-blue-900 dark:text-white dark:hover:text-gray-400"
                       >
                         <>{t("delete")}</>
                       </button>
@@ -143,7 +143,7 @@ const FileList = () => {
                 onClick={() => {
                   setPage(page + 1);
                 }}
-                className="text-blue-600 duration-500 hover:text-blue-900"
+                className="text-blue-600 duration-500 hover:text-blue-900 dark:text-white dark:hover:text-gray-400"
               >
                 <>{t("showMore")}</>
               </button>

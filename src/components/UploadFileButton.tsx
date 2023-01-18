@@ -12,7 +12,7 @@ const Large = ({ href }) => {
     <Link href={href}>
       <a className="transition-color mx-auto flex cursor-pointer flex-row items-center rounded-md bg-black px-6 py-3 text-lg font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none dark:bg-white dark:text-black lg:mx-0">
         <>
-          {t("createAFile")}
+          {t("uploadFile")}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="ml-2 h-5 w-5"
@@ -37,7 +37,7 @@ const Small = ({ href }) => {
   return (
     <Link href={href}>
       <a className="inline-flex items-center justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none dark:bg-white dark:text-black sm:w-auto">
-        <>{t("uploadAFile")}</>
+        <>{t("uploadFile")}</>
       </a>
     </Link>
   );
