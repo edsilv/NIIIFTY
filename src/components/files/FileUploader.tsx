@@ -1,4 +1,4 @@
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useState } from "react";
 import { storage } from "../../utils/Firebase";
 import { ref, uploadBytesResumable } from "firebase/storage";
 import { useTranslation } from "react-i18next";
@@ -53,10 +53,10 @@ export default function FileUploader({ id, onComplete }: {
 
         switch (snapshot.state) {
           case 'paused':
-            console.log('Upload is paused');
+            // console.log('Upload is paused');
             break;
           case 'running':
-            console.log('Upload is running');
+            // console.log('Upload is running');
             break;
         }
       },
@@ -65,19 +65,11 @@ export default function FileUploader({ id, onComplete }: {
         console.error(error);
       },
       () => {
-        // Handle successful uploads on complete
-        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-        //getDownloadURL(uploadTask.snapshot.ref).then(() => {
-        //const thumbnailURL = getThumbnailUrl(id);
-        //setThumbnailURL(thumbnailURL);
         setUploading(false);
         onComplete(file);
-        //});
       }
     );
   };
-
-  const thumbRef = useRef();
 
   return (
     <div>
@@ -99,12 +91,6 @@ export default function FileUploader({ id, onComplete }: {
           </label>
         </>
       )}
-
-      {/* {thumbnailURL && !thumbnailReady && <>{t("loading")}</>}
-
-      {thumbnailURL && <img ref={thumbRef} className={cx({
-        "hidden": !thumbnailReady
-      })} />} */}
     </div>
   );
 }
