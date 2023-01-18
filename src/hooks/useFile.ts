@@ -29,7 +29,7 @@ export const add = async (
 
 const modifiers: DocumentModifiers<AuthoringFile> = {
   update: (userAdapter: UserAdapter, id: string, values: AuthoringFile) => {
-    userAdapter.updateFile(id, values);
+    return userAdapter.updateFile(id, values);
   },
 };
 

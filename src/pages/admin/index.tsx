@@ -67,11 +67,11 @@ const FileList = () => {
                   >
                     <>{t("modified")}</>
                   </th>
-                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                  {/* <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">
                       <>{t("edit")}</>
                     </span>
-                  </th>
+                  </th> */}
                   <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">
                       <>{t("delete")}</>
@@ -83,9 +83,9 @@ const FileList = () => {
                 {files.map((file) => (
                   <tr key={file.id}>
                     <td>
-                      <div className="w-24 px-2 py-1">
+                      <a className="block w-24 px-2 py-1" href={`/admin/${file.id}`}>
                         <ImageWithRetry src={getFileUrl(`${file.id}/thumb.jpg`)} alt={file.title} />
-                      </div>
+                      </a>
                     </td>
                     <td className="w-full max-w-0 py-4 pr-3 pl-4 text-sm font-medium text-gray-900">
                       {/* <a
@@ -93,7 +93,7 @@ const FileList = () => {
                         target="_blank"
                         className="text-blue-600 no-underline duration-500 hover:text-blue-900"
                       > */}
-                      {file.title}
+                      <a className="no-underline" href={`/admin/${file.id}`}>{file.title}</a>
                       {/* </a> */}
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-500 lg:table-cell">
@@ -103,16 +103,16 @@ const FileList = () => {
                         file.modified
                       ).toLocaleTimeString()}`}
                     </td>
-                    <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                    {/* <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         onClick={() => {
                           window.location.href = `/admin/${file.id}`;
                         }}
                         className="text-blue-600 duration-500 hover:text-blue-900"
                       >
-                        <>{t("edit")}</>
+                        <>{t("details")}</>
                       </button>
-                    </td>
+                    </td> */}
                     <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         onClick={() => {

@@ -13,8 +13,10 @@ const ImageWithRetry = (props: any) => {
       imgRef.current.onerror = () => {
         if (Date.now() - timestamp < 10000) {
           setTimeout(() => {
-            // @ts-ignore
-            imgRef.current.src = props.src;
+            if (imgRef.current) {
+              // @ts-ignore
+              imgRef.current.src = props.src;
+            }
           }, 1000);
         }
       };

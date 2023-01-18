@@ -21,6 +21,7 @@ export type MimeType = typeof MIMETYPES[keyof typeof MIMETYPES];
 
 export interface File {
   id?: string;
+  cid: string;
   created: Timestamp;
   uid: string; // who created it (files are global, not stored in user's collection)
   modified: Timestamp;
@@ -137,8 +138,3 @@ export type LicenseURL = "https://creativecommons.org/publicdomain/zero/1.0/" |
   "https://creativecommons.org/licenses/by-nc/4.0/" |
   "https://creativecommons.org/licenses/by-nc-sa/4.0/" |
   "https://creativecommons.org/licenses/by-nc-nd/4.0/";
-
-export type License = {
-  name: string;
-  url: LicenseURL;
-};

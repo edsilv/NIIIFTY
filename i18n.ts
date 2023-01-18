@@ -10,15 +10,18 @@ i18n
       en: {
         translations: {
           admin: "Admin",
+          attribution: "Attribution",
           available: "Available",
           checking: "checking...",
           chooseAUsername: "Choose a username",
+          cid: "CID",
           confirmFileDeletion: 'Are you sure you want to delete "{{title}}"?',
           confirmRenameSlug:
             'Are you sure you want to change the title? This will mean that all existing links to "{{slug}}" will no longer work',
           contact: "Contact",
           createAccount: "Create Account",
           delete: "Delete",
+          details: "Details",
           docs: "Docs",
           edit: "Edit",
           email: "hello@mnemoscene.io",
@@ -33,6 +36,7 @@ i18n
           isAvailable: '"{{val}}" is available.',
           isInvalid: '"{{val}}" is invalid.',
           isTaken: '"{{val}}" is taken, please try another.',
+          license: "License",
           loading: "Loading...",
           mnemosceneLtd: "Mnemoscene LTD",
           modified: "Modified",
@@ -55,6 +59,9 @@ i18n
           siteName: "NIIIFTY",
           termsOfService: "Terms of Service",
           title: "Title",
+          titleInvalid: "Title must be at least one character and contain only letters, numbers, spaces, hyphens, and underscores.",
+          viewOnW3SLink: "View on web3.storage CDN",
+          update: "Update",
           uploadFile: "Upload File",
           uploadAFile: "Upload a File",
           usernameInvalid:
