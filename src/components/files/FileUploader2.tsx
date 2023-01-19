@@ -60,11 +60,12 @@ export function FileUploader2(props) {
       files.forEach((file: FileWithPath) => {
         // is file type supported?
         if (isFileAccepted(file)) {
-          if (isPreviewSupported(file)) {
-            Object.assign(file, {
-              preview: URL.createObjectURL(file)
-            });
-          }
+          // only shows preview for images - looks odd alongside other icons
+          // if (isPreviewSupported(file)) {
+          //   Object.assign(file, {
+          //     preview: URL.createObjectURL(file)
+          //   });
+          // }
         } else {
           (file as FileExtended).error = true;
         }
@@ -148,8 +149,8 @@ export function FileUploader2(props) {
         files.map((file: FileExtended) => (
           <tr key={file.path}>
             <td className={cx(
-              "w-20 h-20 pr-4 text-gray-400",
-              file.error ? "text-red-500" : ""
+              "w-16 h-16 pr-4",
+              file.error ? "text-red-500" : "text-gray-400"
             )}>
               <Thumbnail file={file} />
             </td>
