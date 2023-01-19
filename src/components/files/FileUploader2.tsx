@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { ChangeEvent, useContext, useEffect, useState } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
 import cx from "classnames";
 import { formatBytes } from '@/utils/Utils';
+import { useTranslation } from 'react-i18next';
+import { db, storage } from "../../utils/Firebase";
+import { ref, uploadBytesResumable } from "firebase/storage";
+import { add } from "@/hooks/useFile";
+import { UserContext } from '@/utils/UserContext';
+import { collection, doc } from "firebase/firestore";
+import { MimeType } from "@/utils/Types";
+import path from 'path';
 
 type FileExtended = FileWithPath & { preview: string; error: boolean; };
 
@@ -159,7 +167,11 @@ export function FileUploader2(props) {
               {formatBytes(file.size, 1)}
             </td>
             <td>
-
+              {
+                !file.error && (
+                  <FileUpload file={file} />
+                )
+              }
             </td>
           </tr>
         ))
@@ -226,5 +238,71 @@ export function FileUploader2(props) {
         )
       }
     </section>
+  );
+};
+
+const FileUpload = ({ file }: {
+  file: FileExtended;
+}) => {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const { user, userAdapter } = useContext<UserContext>(UserContext);
+
+  const id = doc(collection(db, "files")).id;
+
+  // Creates a Firebase Upload Task
+
+  useEffect(() => {
+    const extension = file.type.split("/")[1];
+    const fileName: string = `${id}/original.${extension}`;
+    const storageRef = ref(storage, fileName);
+
+    setUploading(true);
+
+    // Starts the upload
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        // Observe state change events such as progress, pause, and resume
+        // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+        const pct = (
+          (snapshot.bytesTransferred / snapshot.totalBytes) *
+          100
+        ).toFixed(0) as any;
+
+        setProgress(pct);
+
+        switch (snapshot.state) {
+          case 'paused':
+            // console.log('Upload is paused');
+            break;
+          case 'running':
+            // console.log('Upload is running');
+            break;
+        }
+      },
+      (error) => {
+        // Handle unsuccessful uploads
+        console.error(error);
+      },
+      async () => {
+        setUploading(false);
+        // onComplete(file);
+        // file is now in cloud storage
+        // create a file record in firestore (triggers cloud function to generate derivatives)
+        await add(userAdapter!, id, {
+          uid: user.uid,
+          type: file.type as MimeType,
+          title: path.basename(file.name, path.extname(file.name))
+        });
+      }
+    );
+  }, []);
+
+  return (
+    <div>
+      {uploading && <h3>{progress}%</h3>}
+    </div>
   );
 };

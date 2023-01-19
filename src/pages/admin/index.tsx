@@ -119,7 +119,7 @@ const FileList = () => {
                           if (
                             window.confirm(
                               t("confirmFileDeletion", {
-                                title: file.id,
+                                title: file.title,
                               })
                             )
                           ) {
