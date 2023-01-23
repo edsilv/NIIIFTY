@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
 // todo: upgrade to functions v2 when out of beta
 // https://firebase.google.com/docs/functions/beta/get-started
-const functions = require('firebase-functions');
-const { Storage } = require('@google-cloud/storage');
-const { Web3Storage } = require('web3.storage');
-const path = require('path');
-const sharp = require('sharp');
+const functions = require("firebase-functions");
+const { Storage } = require("@google-cloud/storage");
+const { Web3Storage } = require("web3.storage");
+const path = require("path");
+const sharp = require("sharp");
 
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
 const PROJECT_ID = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
@@ -19,36 +19,38 @@ const gcsBucket = gcs.bucket(`${PROJECT_ID}.appspot.com`);
 const web3Storage = new Web3Storage({ token: WEB3_STORAGE_API_KEY });
 
 async function resizeImage(image, name, width, height) {
+  const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
+  const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream();
 
-	const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
-	const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream();
+  // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
+  const pipeline = sharp();
 
-	// Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
-	const pipeline = sharp();
+  pipeline
+    .resize({
+      width,
+      height,
+      fit: sharp.fit.cover,
+      format: "jpeg",
+      quality: 80,
+    })
+    .pipe(imageUploadStream);
 
-	pipeline.resize({
-		width,
-		height,
-		fit: sharp.fit.cover,
-		format: 'jpeg',
-		quality: 80
-	}).pipe(imageUploadStream);
+  gcsBucket.file(image.name).createReadStream().pipe(pipeline);
 
-	gcsBucket.file(image.name).createReadStream().pipe(pipeline);
-
-	return new Promise((resolve, reject) =>
-		imageUploadStream.on('finish', resolve).on('error', reject));
+  return new Promise((resolve, reject) =>
+    imageUploadStream.on("finish", resolve).on("error", reject)
+  );
 }
 
 async function addToWeb3Storage(file) {
-	const cid = await web3Storage.put([
-		{
-			name: file.name.split('/').pop(),
-			stream: () => gcsBucket.file(file.name).createReadStream()
-		}
-	]);
+  const cid = await web3Storage.put([
+    {
+      name: file.name.split("/").pop(),
+      stream: () => gcsBucket.file(file.name).createReadStream(),
+    },
+  ]);
 
-	return cid;
+  return cid;
 }
 
 // when a file is created in firestore,
@@ -62,7 +64,7 @@ async function addToWeb3Storage(file) {
 // full (the raw image but optimised at 80% compression)
 // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
 
-// regular (width 1080px, 80% compression) 
+// regular (width 1080px, 80% compression)
 // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
 
 // small (width 400px, 80% compression)
@@ -71,63 +73,67 @@ async function addToWeb3Storage(file) {
 // thumb (width 200px, 80% compression)
 // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
 
-exports.fileCreated = functions.region('europe-west3')
-	.runWith({
-		timeoutSeconds: 300,
-		memory: '1GB'
-	})
-	.firestore
-	.document('files/{fileId}')
-	.onCreate(async (snap, context) => {
-		// Get an object representing the document
-		// e.g. {'name': 'Marie', 'age': 66}
-		// const newValue = snap.data();
-		// access a particular field as you would any JS property
-		// const name = newValue.name;
+exports.fileCreated = functions
+  .region("europe-west3")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
+  .firestore.document("files/{fileId}")
+  .onCreate(async (snap, context) => {
+    // Get an object representing the document
+    // e.g. {'name': 'Marie', 'age': 66}
+    // const newValue = snap.data();
+    // access a particular field as you would any JS property
+    // const name = newValue.name;
 
-		const fileId = context.params.fileId;
-		// get a reference to the uploaded original.[png, jpg, mp4, glb] file
-		const [files] = await gcsBucket.getFiles({ prefix: `${fileId}/original` });
-		// get a reference to the uploaded original.[png, jpg, mp4, glb] file
-		// const originalFile = files.find(file => file.name.startsWith(`${fileId}/original`));
+    const fileId = context.params.fileId;
+    // get a reference to the uploaded original.[png, jpg, mp4, glb] file
+    const [files] = await gcsBucket.getFiles({ prefix: `${fileId}/original` });
+    // get a reference to the uploaded original.[png, jpg, mp4, glb] file
+    // const originalFile = files.find(file => file.name.startsWith(`${fileId}/original`));
 
-		if (files.length) {
-			const originalFile = files[0];
+    if (files.length) {
+      const originalFile = files[0];
 
-			// todo: switch on file mime type, and generate derivatives accordingly
+      // todo: switch on file mime type, and generate derivatives accordingly
 
-			// full (the original image optimised at 80% compression)
-			resizeImage(originalFile, "full", null, null);
-			// regular (width 1080px, 80% compression)
-			resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
-			// small (width 400px, 80% compression)
-			resizeImage(originalFile, "small", SMALL_WIDTH, null);
-			// thumb (width 200px, 80% compression)
-			resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+      // full (the original image optimised at 80% compression)
+      resizeImage(originalFile, "full", null, null);
+      // regular (width 1080px, 80% compression)
+      resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
+      // small (width 400px, 80% compression)
+      resizeImage(originalFile, "small", SMALL_WIDTH, null);
+      // thumb (width 200px, 80% compression)
+      resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
-			const cid = await addToWeb3Storage(originalFile);
+      const cid = await addToWeb3Storage(originalFile);
 
-			return snap.ref.set({
-				cid,
-			}, { merge: true });
-		}
-	});
+      return snap.ref.set(
+        {
+          cid,
+          processed: true,
+        },
+        { merge: true }
+      );
+    }
+  });
 
-exports.fileDeleted = functions.region('europe-west3')
-	.runWith({
-		timeoutSeconds: 300,
-		memory: '1GB'
-	})
-	.firestore
-	.document('files/{fileId}')
-	.onDelete(async (_snap, context) => {
-		const fileId = context.params.fileId;
+exports.fileDeleted = functions
+  .region("europe-west3")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
+  .firestore.document("files/{fileId}")
+  .onDelete(async (_snap, context) => {
+    const fileId = context.params.fileId;
 
-		// https://googleapis.dev/nodejs/storage/latest/Bucket.html#deleteFiles
-		gcsBucket.deleteFiles({
-			prefix: `${fileId}`
-		});
-	});
+    // https://googleapis.dev/nodejs/storage/latest/Bucket.html#deleteFiles
+    gcsBucket.deleteFiles({
+      prefix: `${fileId}`,
+    });
+  });
 
 /**
  * When a file is uploaded in the Storage bucket we generate a thumbnail automatically using

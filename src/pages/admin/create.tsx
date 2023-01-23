@@ -1,13 +1,5 @@
 import AuthCheck from "@/components/AuthCheck";
-import FileUploader from "@/components/files/FileUploader";
-import { useContext } from "react";
-import { add } from "@/hooks/useFile";
-import { UserContext } from "@/utils/UserContext";
-import { db } from "@/utils/Firebase";
-import { collection, doc } from "firebase/firestore";
-import { MimeType } from "@/utils/Types";
-import path from "path";
-import { FileUploader2 } from "@/components/files/FileUploader2";
+import { FileUploader2 } from "@/components/files/FileUploader";
 
 export default function CreateExhibitPage(_props) {
   return <AuthCheck signedInContent={<CreateFile />}></AuthCheck>;
@@ -19,9 +11,11 @@ function CreateFile() {
   // generate an id to use for the new file
   // const id = doc(collection(db, "files")).id;
 
-  return <div>
-    <FileUploader2 />
-  </div>;
+  return (
+    <div>
+      <FileUploader2 />
+    </div>
+  );
 
   // return <div>
   //   <FileUploader id={id} onComplete={async (file: File) => {

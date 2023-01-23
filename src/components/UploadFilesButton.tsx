@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 
-const UploadFileButton = ({ href }) => {
+const UploadFilesButton = ({ href }) => {
   return <Large href={href} />;
 };
 
@@ -37,13 +37,13 @@ const Small = ({ href }) => {
   return (
     <Link href={href}>
       <a className="inline-flex items-center justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white no-underline shadow-md duration-500 hover:bg-white hover:text-black focus:outline-none dark:bg-white dark:text-black sm:w-auto">
-        <>{t("uploadFile")}</>
+        <>{t("uploadFiles")}</>
       </a>
     </Link>
   );
 };
 
-UploadFileButton.Large = Large;
-UploadFileButton.Small = Small;
+UploadFilesButton.Large = Large;
+UploadFilesButton.Small = Small;
 
-export default UploadFileButton;
+export default UploadFilesButton;

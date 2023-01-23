@@ -20,17 +20,18 @@ export const MIMETYPES = {
 export type MimeType = typeof MIMETYPES[keyof typeof MIMETYPES];
 
 export interface File {
-  id?: string;
+  attribution: string;
   cid: string;
   created: Timestamp;
-  uid: string; // who created it (files are global, not stored in user's collection)
-  modified: Timestamp;
-  type: MimeType;
-  title: string;
   description: string;
-  attribution: string;
+  id?: string;
   license: LicenseURL;
+  modified: Timestamp;
+  processed: boolean;
   softwareVersion?: string;
+  title: string;
+  type: MimeType;
+  uid: string; // who created it (files are global, not stored in user's collection)
 }
 
 export type FileProps = {
@@ -42,10 +43,7 @@ export type FileProps = {
 // all of these props are required on save
 export type SavedFile = MandateProps<
   File,
-  | "uid"
-  | "type"
-  | "title"
-  | "license"
+  "uid" | "type" | "title" | "license"
 >;
 
 // loaded when authoring an file
@@ -67,10 +65,10 @@ export type AuthoringFileContextState = {
 };
 
 export type AuthoringFileAction =
-  | { type: "delete"; }
-  | { type: "error"; }
-  | { type: "reset"; }
-  | { type: "sync"; payload: AuthoringFile; };
+  | { type: "delete" }
+  | { type: "error" }
+  | { type: "reset" }
+  | { type: "sync"; payload: AuthoringFile };
 
 export interface UseDocumentOptions<T> {
   onData?: (data: T) => void;
@@ -131,10 +129,11 @@ export type ChildCollectionModifiers<T> = {
   ) => void;
 };
 
-export type LicenseURL = "https://creativecommons.org/publicdomain/zero/1.0/" |
-  "https://creativecommons.org/licenses/by/4.0/" |
-  "https://creativecommons.org/licenses/by-sa/4.0/" |
-  "https://creativecommons.org/licenses/by-nd/4.0/" |
-  "https://creativecommons.org/licenses/by-nc/4.0/" |
-  "https://creativecommons.org/licenses/by-nc-sa/4.0/" |
-  "https://creativecommons.org/licenses/by-nc-nd/4.0/";
+export type LicenseURL =
+  | "https://creativecommons.org/publicdomain/zero/1.0/"
+  | "https://creativecommons.org/licenses/by/4.0/"
+  | "https://creativecommons.org/licenses/by-sa/4.0/"
+  | "https://creativecommons.org/licenses/by-nd/4.0/"
+  | "https://creativecommons.org/licenses/by-nc/4.0/"
+  | "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+  | "https://creativecommons.org/licenses/by-nc-nd/4.0/";

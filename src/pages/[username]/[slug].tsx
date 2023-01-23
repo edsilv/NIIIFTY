@@ -2,7 +2,6 @@ import { FileProps } from "@/utils/Types";
 import Metatags from "@/components/Metatags";
 import { getFileBySlug, getUserWithUsername } from "@/utils/Firebase";
 import { fileToJson } from "@/utils/Utils";
-const striptags = require("striptags");
 
 export async function getServerSideProps({ query }) {
   const { username, slug, embedded } = query;
@@ -16,7 +15,7 @@ export async function getServerSideProps({ query }) {
     };
   }
 
-  let file = await getFileBySlug(user.uid, slug);
+  let file: any = await getFileBySlug(user.uid, slug);
 
   // If no file, short circuit to 404 page
   if (!file) {

@@ -4,9 +4,11 @@ import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { remove } from "@/hooks/useFile";
 import { usePaginatedFiles } from "@/hooks/usePaginatedFiles";
-import CreateFileButton from "@/components/UploadFileButton";
+import UploadFilesButton from "@/components/UploadFilesButton";
 import ImageWithRetry from "@/components/ImageWithRetry";
 import { getFileUrl } from "@/utils/Utils";
+import cx from "classnames";
+import Spinner from "@/components/Spinner";
 
 export default function AdminPage(_props) {
   return <AuthCheck signedInContent={<Admin />}></AuthCheck>;
@@ -42,7 +44,7 @@ const FileList = () => {
           )}
         </div>
         <div className="mt-6 sm:mt-0 sm:ml-16 sm:flex-none">
-          <CreateFileButton.Small href="/admin/create" />
+          <UploadFilesButton.Small href="/admin/create" />
         </div>
       </div>
       {files.length > 0 && (
@@ -51,10 +53,7 @@ const FileList = () => {
             <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
               <thead className="bg-gray-100 dark:bg-gray-600">
                 <tr>
-                  <th
-                    scope="col"
-                  >
-                  </th>
+                  <th scope="col"></th>
                   <th
                     scope="col"
                     className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100"
@@ -80,20 +79,41 @@ const FileList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                {files.map((file) => (
-                  <tr key={file.id}>
-                    <td>
-                      <a className="block w-24 px-2 py-2" href={`/admin/${file.id}`}>
-                        <ImageWithRetry src={getFileUrl(`${file.id}/thumb.jpg`)} alt={file.title} />
+                {files.map((file: any) => (
+                  <tr
+                    key={file.id}
+                    className={cx(
+                      !file.processed ? "pointer-events-none opacity-50" : ""
+                    )}
+                  >
+                    <td className="w-8">
+                      <a
+                        className="block w-24 px-2 py-2"
+                        href={`/admin/${file.id}`}
+                      >
+                        <div className="bg-gray-400">
+                          {file.processed ? (
+                            <img
+                              src={getFileUrl(`${file.id}/thumb.jpg`)}
+                              alt={file.title}
+                            />
+                          ) : (
+                            <div className="flex h-20 w-20 content-center items-center justify-center pl-4">
+                              <Spinner />
+                            </div>
+                          )}
+                        </div>
                       </a>
                     </td>
-                    <td className="w-full max-w-0 py-4 pr-3 pl-4 text-sm font-medium text-gray-900">
+                    <td className="max-w-[45vw] overflow-hidden text-ellipsis whitespace-nowrap py-4 pr-3 pl-4 text-sm font-medium text-gray-900">
                       {/* <a
                         href={`/${username}/${slugify(file.name)}`}
                         target="_blank"
                         className="text-blue-600 no-underline duration-500 hover:text-blue-900"
                       > */}
-                      <a className="no-underline" href={`/admin/${file.id}`}>{file.title}</a>
+                      <a className="no-underline" href={`/admin/${file.id}`}>
+                        {file.title}
+                      </a>
                       {/* </a> */}
                     </td>
                     <td className="hidden whitespace-nowrap px-12 py-4 text-sm text-gray-400 lg:table-cell">

@@ -1,15 +1,14 @@
-import UploadFileButton from "@/components/UploadFileButton";
+import UploadFilesButton from "@/components/UploadFilesButton";
 // import Link from "@/components/Link";
 import Metatags from "@/components/Metatags";
 import { title, description } from "../utils/Config";
 
 export default function Home() {
-
   return (
     <>
       <Metatags title={title} description={description} />
       <div className="w-56">
-        <UploadFileButton.Large href="/admin" />
+        <UploadFilesButton.Large href="/admin" />
       </div>
       {/* <p>
         {
