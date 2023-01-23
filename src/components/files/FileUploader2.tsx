@@ -1,8 +1,7 @@
-import React, { ChangeEvent, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useDropzone, FileWithPath } from 'react-dropzone';
 import cx from "classnames";
 import { formatBytes } from '@/utils/Utils';
-import { useTranslation } from 'react-i18next';
 import { db, storage } from "../../utils/Firebase";
 import { ref, uploadBytesResumable } from "firebase/storage";
 import { add } from "@/hooks/useFile";
@@ -10,6 +9,11 @@ import { UserContext } from '@/utils/UserContext';
 import { collection, doc } from "firebase/firestore";
 import { MimeType } from "@/utils/Types";
 import path from 'path';
+import {
+  CircularProgressbar,
+  buildStyles
+} from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
 
 type FileExtended = FileWithPath & { preview: string; error: boolean; };
 
@@ -32,9 +36,9 @@ export function FileUploader2(props) {
     return acceptedFileTypes.includes(file.type.toLowerCase()) || file.path.split(".").pop() === "glb";
   }
 
-  function isPreviewSupported(file: FileWithPath) {
-    return file.type.startsWith("image/") && !file.type.includes("tiff");
-  }
+  // function isPreviewSupported(file: FileWithPath) {
+  //   return file.type.startsWith("image/") && !file.type.includes("tiff");
+  // }
 
   const {
     // acceptedFiles,
@@ -157,16 +161,16 @@ export function FileUploader2(props) {
         files.map((file: FileExtended) => (
           <tr key={file.path}>
             <td className={cx(
-              "w-16 h-16 pr-4",
+              "w-20 h-20 pr-4",
               file.error ? "text-red-500" : "text-gray-400"
             )}>
               <Thumbnail file={file} />
             </td>
             <td>
-              <span className="font-bold">{file.path}</span><br />
-              {formatBytes(file.size, 1)}
+              <span className="font-bold text-sm">{file.path}</span><br />
+              <span className="text-sm">{formatBytes(file.size, 1)}</span>
             </td>
-            <td>
+            <td className="w-6">
               {
                 !file.error && (
                   <FileUpload file={file} />
@@ -244,20 +248,16 @@ export function FileUploader2(props) {
 const FileUpload = ({ file }: {
   file: FileExtended;
 }) => {
-  const [uploading, setUploading] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
   const [progress, setProgress] = useState(0);
   const { user, userAdapter } = useContext<UserContext>(UserContext);
 
   const id = doc(collection(db, "files")).id;
 
-  // Creates a Firebase Upload Task
-
   useEffect(() => {
     const extension = file.type.split("/")[1];
     const fileName: string = `${id}/original.${extension}`;
     const storageRef = ref(storage, fileName);
-
-    setUploading(true);
 
     // Starts the upload
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -287,7 +287,7 @@ const FileUpload = ({ file }: {
         console.error(error);
       },
       async () => {
-        setUploading(false);
+        setUploadComplete(true);
         // onComplete(file);
         // file is now in cloud storage
         // create a file record in firestore (triggers cloud function to generate derivatives)
@@ -298,11 +298,23 @@ const FileUpload = ({ file }: {
         });
       }
     );
-  }, []);
+  }, [file]);
 
   return (
-    <div>
-      {uploading && <h3>{progress}%</h3>}
-    </div>
+    uploadComplete ? (
+      <div className="w-6 h-6 text-green-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+        </svg>
+      </div>
+    ) : (
+      <CircularProgressbar
+        value={progress}
+        strokeWidth={50}
+        styles={buildStyles({
+          strokeLinecap: "butt"
+        })}
+      />
+    )
   );
 };
