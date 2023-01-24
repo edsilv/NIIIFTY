@@ -53,26 +53,35 @@ async function addToWeb3Storage(file) {
   return cid;
 }
 
+async function processImage(originalFile) {
+  // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
+
+  // raw (the original image)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3"
+
+  // full (the raw image but optimised at 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
+  resizeImage(originalFile, "full", null, null);
+
+  // regular (width 1080px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
+  resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
+
+  // small (width 400px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
+  resizeImage(originalFile, "small", SMALL_WIDTH, null);
+
+  // thumb (width 200px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
+  resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+
+  const cid = await addToWeb3Storage(originalFile);
+
+  return { cid };
+}
+
 // when a file is created in firestore,
 // generate derivatives, and replicate to web3.storage
-
-// for image derivatives, use the same image set as unsplash, which makes the following available via their api:
-
-// raw (the original image)
-// "https://images.unsplash.com/photo-1565651454302-e263192bad3a?ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3"
-
-// full (the raw image but optimised at 80% compression)
-// "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
-
-// regular (width 1080px, 80% compression)
-// "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
-
-// small (width 400px, 80% compression)
-// "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
-
-// thumb (width 200px, 80% compression)
-// "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
-
 exports.fileCreated = functions
   .region("europe-west3")
   .runWith({
@@ -81,37 +90,43 @@ exports.fileCreated = functions
   })
   .firestore.document("files/{fileId}")
   .onCreate(async (snap, context) => {
-    // Get an object representing the document
-    // e.g. {'name': 'Marie', 'age': 66}
-    // const newValue = snap.data();
-    // access a particular field as you would any JS property
-    // const name = newValue.name;
-
     const fileId = context.params.fileId;
-    // get a reference to the uploaded original.[png, jpg, mp4, glb] file
+    // get a reference to the uploaded original.[png, jpg, tif, tiff, mp3, mp4, glb] file
     const [files] = await gcsBucket.getFiles({ prefix: `${fileId}/original` });
-    // get a reference to the uploaded original.[png, jpg, mp4, glb] file
-    // const originalFile = files.find(file => file.name.startsWith(`${fileId}/original`));
+
+    let processedProps;
 
     if (files.length) {
       const originalFile = files[0];
 
-      // todo: switch on file mime type, and generate derivatives accordingly
+      const file = snap.data();
 
-      // full (the original image optimised at 80% compression)
-      resizeImage(originalFile, "full", null, null);
-      // regular (width 1080px, 80% compression)
-      resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
-      // small (width 400px, 80% compression)
-      resizeImage(originalFile, "small", SMALL_WIDTH, null);
-      // thumb (width 200px, 80% compression)
-      resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+      switch (file.type) {
+        case "image/png":
+        case "image/jpeg":
+        case "image/tif":
+        case "image/tiff":
+          // process image
+          processedProps = await processImage(originalFile);
+          break;
+        case "audio/mpeg":
+          // process audio
+          break;
+        case "video/mp4":
+          // process video
+          break;
+        case "model/gltf-binary":
+          // process gltf
+          break;
+        default:
+          // reject
+          throw new Error("Unsupported file type", mimeType);
+      }
 
-      const cid = await addToWeb3Storage(originalFile);
-
+      // update firestore record
       return snap.ref.set(
         {
-          cid,
+          ...processedProps,
           processed: true,
         },
         { merge: true }

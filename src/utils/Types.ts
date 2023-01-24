@@ -8,12 +8,13 @@ type MandateProps<T extends {}, K extends keyof T> = Omit<T, K> & {
 };
 
 export const MIMETYPES = {
-  PNG: "image/png",
+  GLB: "model/gltf-binary",
   JPG: "image/jpeg",
+  MP3: "audio/mpeg",
+  MP4: "video/mp4",
+  PNG: "image/png",
   TIF: "image/tif",
   TIFF: "image/tiff",
-  MP4: "video/mp4",
-  GLB: "model/gltf-binary",
 } as const;
 // "audio/mpeg" ?
 
