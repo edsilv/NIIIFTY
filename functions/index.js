@@ -7,6 +7,7 @@ const { Storage } = require("@google-cloud/storage");
 const { Web3Storage } = require("web3.storage");
 const path = require("path");
 const sharp = require("sharp");
+const unzip = require("unzipper");
 
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
 const PROJECT_ID = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
@@ -42,6 +43,60 @@ async function resizeImage(image, name, width, height) {
   );
 }
 
+async function generateIIIFImageTiles(image) {
+  const imageTilesFilePath = path.join(path.dirname(image.name), "iiif.zip");
+  const imageUploadStream = gcsBucket
+    .file(imageTilesFilePath)
+    .createWriteStream();
+
+  // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
+
+  // await sharp(image, {
+  //   limitInputPixels: true,
+  // })
+  //   .tile({
+  //     layout: "iiif",
+  //     id: "someid", // urljoin(url, directoryName),
+  //   })
+  //   .toFile(imageUploadStream);
+
+  const pipeline = sharp();
+
+  pipeline
+    .tile({
+      layout: "iiif",
+      id: "someid", //urljoin(url, directoryName),
+    })
+    .pipe(imageUploadStream);
+
+  return new Promise((resolve, reject) =>
+    // pipe image to sharp pipeline
+    gcsBucket
+      .file(image.name)
+      .createReadStream()
+      .pipe(pipeline)
+      .pipe(unzip.Parse())
+      .on("entry", (entry) => {
+        // unzip
+        // https://stackoverflow.com/a/51978883
+        // const file = bucket.file(`${remoteDir}/${entry.path}`);
+        const zipFilePath = path.join(path.dirname(image.name), entry.path);
+        const file = gcsBucket.file(zipFilePath);
+
+        entry
+          .pipe(file.createWriteStream())
+          .on("error", (err) => {
+            console.log(err);
+            reject(err);
+          })
+          .on("finish", () => {
+            console.log(`finished extracting ${zipFilePath}`);
+            resolve();
+          });
+      })
+  );
+}
+
 async function addToWeb3Storage(file) {
   const cid = await web3Storage.put([
     {
@@ -61,20 +116,24 @@ async function processImage(originalFile) {
 
   // full (the raw image but optimised at 80% compression)
   // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
-  resizeImage(originalFile, "full", null, null);
+  await resizeImage(originalFile, "full", null, null);
 
   // regular (width 1080px, 80% compression)
   // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
-  resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
+  await resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
 
   // small (width 400px, 80% compression)
   // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
-  resizeImage(originalFile, "small", SMALL_WIDTH, null);
+  await resizeImage(originalFile, "small", SMALL_WIDTH, null);
 
   // thumb (width 200px, 80% compression)
   // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
-  resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+  await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
+  // generate IIIF image tiles
+  await generateIIIFImageTiles(originalFile);
+
+  // add the original file to web3.storage
   const cid = await addToWeb3Storage(originalFile);
 
   return { cid };
