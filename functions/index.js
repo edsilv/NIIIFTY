@@ -7,7 +7,8 @@ const { Storage } = require("@google-cloud/storage");
 const { Web3Storage } = require("web3.storage");
 const path = require("path");
 const sharp = require("sharp");
-const unzip = require("unzipper");
+// const unzipper = require("unzipper");
+const unzip = require("unzip-stream");
 
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
 const PROJECT_ID = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
@@ -64,38 +65,123 @@ async function generateIIIFImageTiles(image) {
 
   pipeline
     .tile({
-      layout: "iiif",
+      layout: "iiif3",
       id: "someid", //urljoin(url, directoryName),
     })
     .pipe(imageUploadStream);
 
-  return new Promise((resolve, reject) =>
-    // pipe image to sharp pipeline
-    gcsBucket
-      .file(image.name)
+  // pipe image to sharp pipeline
+  gcsBucket.file(image.name).createReadStream().pipe(pipeline);
+
+  return new Promise((resolve, reject) => {
+    imageUploadStream.on("finish", resolve).on("error", reject);
+  });
+}
+
+exports.unzip = functions
+  .runWith({
+    timeoutSeconds: 540,
+    memory: "2GB",
+  })
+  .storage.object()
+  .onFinalize(async (object) => {
+    console.log("----------------------- unzip -----------------------");
+
+    if (
+      object.contentType !== "application/zip" &&
+      object.contentType !== "application/x-zip-compressed"
+    ) {
+      console.log("Not a zip file.", object.contentType);
+      return;
+    }
+
+    const file = gcsBucket.file(object.name);
+    //const remoteDir = object.name.replace(".zip", "");
+
+    console.log(`Downloading ${file.path}`);
+
+    await file
       .createReadStream()
-      .pipe(pipeline)
+      .on("error", (err) => {
+        console.error("createReadStream Error", err);
+        return;
+      })
+      .on("end", () => {
+        // The file is fully downloaded.
+        console.log("Finished downloading.");
+      })
       .pipe(unzip.Parse())
       .on("entry", (entry) => {
-        // unzip
-        // https://stackoverflow.com/a/51978883
-        // const file = bucket.file(`${remoteDir}/${entry.path}`);
-        const zipFilePath = path.join(path.dirname(image.name), entry.path);
-        const file = gcsBucket.file(zipFilePath);
+        const destination = gcsBucket.file(
+          `${file.name.replace(".", "_")}/${entry.path}`
+        );
 
         entry
-          .pipe(file.createWriteStream())
+          .pipe(destination.createWriteStream())
           .on("error", (err) => {
-            console.log(err);
-            reject(err);
+            console.log("Error", err);
           })
           .on("finish", () => {
-            console.log(`finished extracting ${zipFilePath}`);
-            resolve();
+            console.log(`Finished extracting ${destination.path}`);
           });
-      })
-  );
-}
+      });
+    //.promise();
+
+    await file.delete();
+  });
+
+// https://stackoverflow.com/a/59454505
+// https://leolabs.org/blog/firebase-cloud-functions-unzip-files
+// exports.unzip = functions
+//   .runWith({
+//     timeoutSeconds: 540,
+//     memory: "2GB",
+//   })
+//   .storage.object()
+//   .onFinalize(async (object) => {
+//     //console.log(object)
+//     if (
+//       object.contentType !== "application/zip" &&
+//       object.contentType !== "application/x-zip-compressed"
+//     ) {
+//       console.log("Not a zip file.", object.contentType);
+//       return;
+//     }
+
+//     const file = gcsBucket.file(object.name);
+//     //const remoteDir = object.name.replace(".zip", "");
+
+//     console.log(`Downloading ${file}`);
+
+//     await file
+//       .createReadStream()
+//       .on("error", (err) => {
+//         console.error("Error", err);
+//         return;
+//       })
+//       .on("end", () => {
+//         // The file is fully downloaded.
+//         console.log("Finished downloading.");
+//       })
+//       .pipe(unzipper.Parse())
+//       .on("entry", (entry) => {
+//         const destination = gcsBucket.file(
+//           `${file.name.replace(".", "_")}/${entry.path}`
+//         );
+
+//         entry
+//           .pipe(destination.createWriteStream())
+//           .on("error", (err) => {
+//             console.log("Error", err);
+//           })
+//           .on("finish", () => {
+//             console.log(`Finsihed extracting ${destination.path}`);
+//           });
+//       })
+//       .promise();
+
+//     await file.delete();
+//   });
 
 async function addToWeb3Storage(file) {
   const cid = await web3Storage.put([
