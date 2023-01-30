@@ -45,10 +45,8 @@ async function resizeImage(image, name, width, height) {
 }
 
 async function generateIIIFImageTiles(image) {
-  const imageTilesFilePath = path.join(path.dirname(image.name), "iiif.zip");
-  const imageUploadStream = gcsBucket
-    .file(imageTilesFilePath)
-    .createWriteStream();
+  const zipPath = path.join(path.dirname(image.name), "iiif.zip");
+  const imageTilesWriteStream = gcsBucket.file(zipPath).createWriteStream();
 
   // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
 
@@ -68,67 +66,123 @@ async function generateIIIFImageTiles(image) {
       layout: "iiif3",
       id: "someid", //urljoin(url, directoryName),
     })
-    .pipe(imageUploadStream);
+    .pipe(imageTilesWriteStream);
 
-  // pipe image to sharp pipeline
-  gcsBucket.file(image.name).createReadStream().pipe(pipeline);
-
-  return new Promise((resolve, reject) => {
-    imageUploadStream.on("finish", resolve).on("error", reject);
-  });
-}
-
-exports.unzip = functions
-  .runWith({
-    timeoutSeconds: 540,
-    memory: "2GB",
-  })
-  .storage.object()
-  .onFinalize(async (object) => {
-    console.log("----------------------- unzip -----------------------");
-
-    if (
-      object.contentType !== "application/zip" &&
-      object.contentType !== "application/x-zip-compressed"
-    ) {
-      console.log("Not a zip file.", object.contentType);
-      return;
-    }
-
-    const file = gcsBucket.file(object.name);
-    //const remoteDir = object.name.replace(".zip", "");
-
-    console.log(`Downloading ${file.path}`);
-
-    await file
+  return new Promise((resolve, reject) =>
+    // pipe image to sharp pipeline
+    gcsBucket
+      .file(image.name)
       .createReadStream()
-      .on("error", (err) => {
-        console.error("createReadStream Error", err);
-        return;
-      })
-      .on("end", () => {
-        // The file is fully downloaded.
-        console.log("Finished downloading.");
-      })
+      .pipe(pipeline)
       .pipe(unzip.Parse())
       .on("entry", (entry) => {
-        const destination = gcsBucket.file(
-          `${file.name.replace(".", "_")}/${entry.path}`
-        );
+        console.log("entry", entry.path);
+
+        const entryDestPath = path.join(path.dirname(image.name), entry.path);
+        const entryDestFile = gcsBucket.file(entryDestPath);
 
         entry
-          .pipe(destination.createWriteStream())
+          .pipe(entryDestFile.createWriteStream())
           .on("error", (err) => {
             console.log("Error", err);
+            reject();
           })
           .on("finish", () => {
-            console.log(`Finished extracting ${destination.path}`);
+            console.log(`Finished extracting entry to ${entryDestPath}`);
+            // todo, delete zip file
+            resolve();
           });
-      });
-    //.promise();
+      })
+  );
 
-    await file.delete();
-  });
+  // pipeline
+  //   .tile({
+  //     layout: "iiif3",
+  //     id: "someid", //urljoin(url, directoryName),
+  //   })
+  //   .pipe(imageTilesWriteStream)
+  //   .pipe(unzip.Parse())
+  //   .on("entry", (entry) => {
+  //     console.log("entry", entry.path);
+
+  //     const entryDestPath = path.join(path.dirname(image.name), entry.path);
+  //     const entryDestFile = gcsBucket.file(entryDestPath);
+
+  //     entry
+  //       .pipe(entryDestFile.createWriteStream())
+  //       .on("error", (err) => {
+  //         console.log("Error", err);
+  //       })
+  //       .on("finish", () => {
+  //         console.log(`Finished extracting entry to ${destination}`);
+  //       });
+  //   });
+
+  // // send original image to pipeline
+  // const file = gcsBucket.file(image.name);
+  // file.createReadStream().pipe(pipeline);
+
+  // return new Promise((resolve, reject) => {
+  //   imageTilesWriteStream
+  //     .on("finish", async () => {
+  //       // await file.delete();
+  //       resolve();
+  //     })
+  //     .on("error", reject);
+  // });
+}
+
+// this works, but is triggered for every tile that's added
+// exports.unzip = functions
+//   .runWith({
+//     timeoutSeconds: 540,
+//     memory: "2GB",
+//   })
+//   .storage.object()
+//   .onFinalize(async (object) => {
+//     console.log("----------------------- unzip -----------------------");
+
+//     if (
+//       object.contentType !== "application/zip" &&
+//       object.contentType !== "application/x-zip-compressed"
+//     ) {
+//       console.log("Not a zip file.", object.contentType);
+//       return;
+//     }
+
+//     const file = gcsBucket.file(object.name);
+//     //const remoteDir = object.name.replace(".zip", "");
+
+//     console.log(`Downloading ${file.path}`);
+
+//     await file
+//       .createReadStream()
+//       .on("error", (err) => {
+//         console.error("createReadStream Error", err);
+//         return;
+//       })
+//       .on("end", () => {
+//         // The file is fully downloaded.
+//         console.log("Finished downloading.");
+//       })
+//       .pipe(unzip.Parse())
+//       .on("entry", (entry) => {
+//         const destination = gcsBucket.file(
+//           `${file.name.replace(".", "_")}/${entry.path}`
+//         );
+
+//         entry
+//           .pipe(destination.createWriteStream())
+//           .on("error", (err) => {
+//             console.log("Error", err);
+//           })
+//           .on("finish", () => {
+//             console.log(`Finished extracting ${destination.path}`);
+//           });
+//       });
+
+//     await file.delete();
+//   });
 
 // https://stackoverflow.com/a/59454505
 // https://leolabs.org/blog/firebase-cloud-functions-unzip-files
