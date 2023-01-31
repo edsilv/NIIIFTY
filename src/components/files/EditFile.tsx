@@ -134,6 +134,8 @@ export function EditFile({ id }: { id: string }) {
       );
     }
 
+    const iiifManifest: string = getFileUrl(`${id}/iiif/index.json`);
+
     return (
       <>
         <Metatags
@@ -209,6 +211,18 @@ export function EditFile({ id }: { id: string }) {
             })}
           </select>
 
+          {/* iiif manifest */}
+          <label
+            htmlFor="iiifManifest"
+            className="mt-8 font-light text-gray-600 dark:text-white"
+          >
+            <>{t("iiifManifest")}</>
+          </label>
+
+          <div>
+            <CopyText id="iiifManifest" text={iiifManifest} />
+          </div>
+
           {/* cid */}
           <label
             htmlFor="cid"
@@ -218,7 +232,7 @@ export function EditFile({ id }: { id: string }) {
           </label>
 
           <div>
-            <CopyText id="url" text={cid} />
+            <CopyText id="cid" text={cid} />
             <a
               href={`https://${cid}.ipfs.w3s.link`}
               target="_blank"

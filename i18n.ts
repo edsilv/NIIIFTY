@@ -37,6 +37,7 @@ i18n
           help: "Help",
           iHaveReadAndAgreedToNIIIFTYs: "I have read and agreed to NIIIFTY's",
           isAvailable: '"{{val}}" is available.',
+          iiifManifest: "IIIF Manifest",
           isInvalid: '"{{val}}" is invalid.',
           isTaken: '"{{val}}" is taken, please try another.',
           license: "License",

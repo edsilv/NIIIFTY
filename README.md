@@ -12,4 +12,5 @@ needed if not using js to download files?
 
 https://niiifty-bd2e2.appspot.com.storage.googleapis.com/{filename}
 
-tile example: https://niiifty-bd2e2.appspot.com/iiif_zip/untitled/768,1024,256,256/256,/0/default.jpg
+manifest example: https://niiifty-bd2e2.appspot.com.storage.googleapis.com/u9ZGlTYSXSCabsXZ4IIi/iiif/index.json
+tile example: https://niiifty-bd2e2.appspot.com.storage.googleapis.com/i3oDHY0tHGm2n4RlPG0q/iiif/768,1024,256,256/256,/0/default.jpg

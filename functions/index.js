@@ -7,9 +7,10 @@ const { Storage } = require("@google-cloud/storage");
 const { Web3Storage } = require("web3.storage");
 const path = require("path");
 const sharp = require("sharp");
-// const unzipper = require("unzipper");
 const unzip = require("unzip-stream");
+const { resolve } = require("path");
 
+const GCS_URL = process.env.GCS_URL;
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
 const PROJECT_ID = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
 const REGULAR_WIDTH = 1080;
@@ -44,198 +45,204 @@ async function resizeImage(image, name, width, height) {
   );
 }
 
-async function generateIIIFImageTiles(image) {
+function generateIIIFManifest(path, data) {
+  const id = `${path}/iiif`;
+  const manifestId = `${id}/index.json`;
+  const canvasId = `${manifestId}/canvas/0`;
+  const annotationPageId = `${manifestId}/canvas/0/annotationpage/0`;
+  const annotationId = `${manifestId}/canvas/0/annotation/0`;
+  const { type, title, license } = data;
+
+  let body, thumbnail;
+
+  switch (type) {
+    case "image/png":
+    case "image/jpeg":
+    case "image/tif":
+    case "image/tiff": {
+      body = {
+        id: `${id}/full.jpg`,
+        type: "Image",
+        format: "image/jpeg",
+        label: {
+          "@none": [title],
+        },
+        service: [
+          {
+            id,
+            profile: "level0",
+            type: "ImageService3",
+          },
+        ],
+      };
+
+      thumbnail = [
+        {
+          id: `${id}/thumb.jpg`,
+          type: "Image",
+        },
+      ];
+
+      break;
+    }
+    case "model/gltf-binary": {
+      body = {
+        id: `${id}/compressed.glb`,
+        type: "Model",
+        format: "model/gltf-binary",
+        label: {
+          "@none": [title],
+        },
+      };
+
+      thumbnail = [
+        {
+          id: `${id}/thumb.jpg`,
+          type: "Image",
+        },
+      ];
+    }
+    case "audio/mpeg": {
+    }
+    case "video/mp4": {
+    }
+  }
+
+  const manifest = {
+    "@context": [
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json",
+    ],
+    id: manifestId,
+    type: "Manifest",
+    items: [
+      {
+        id: canvasId,
+        type: "Canvas",
+        items: [
+          {
+            id: annotationPageId,
+            type: "AnnotationPage",
+            items: [
+              {
+                id: annotationId,
+                type: "Annotation",
+                motivation: "painting",
+                body,
+                target: canvasId,
+              },
+            ],
+          },
+        ],
+        label: {
+          "@none": [title],
+        },
+        thumbnail,
+      },
+    ],
+    label: {
+      "@none": [title],
+    },
+  };
+
+  // metadata
+  const kvp = [
+    ...(data.title ? [["Title", title]] : []),
+    ...(data.licence ? [["Licence", license]] : []),
+  ];
+
+  manifest.metadata = kvp.map((x) => {
+    return {
+      label: {
+        "@none": [x[0]],
+      },
+      value: {
+        "@none": [x[1]],
+      },
+    };
+  });
+
+  // requiredStatement
+  if (data.attribution) {
+    manifest.requiredStatement = {
+      label: { en: ["Attribution"] },
+      value: { en: [data.attribution] },
+    };
+  }
+
+  // rights
+  manifest.rights = license;
+
+  return manifest;
+}
+
+async function generateIIIFDerivatives(image, file) {
+  console.log(`------ generating IIIF derivatives for ${image.name} ------`);
+
+  const dirname = path.dirname(image.name);
+
+  // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
+
+  const id = `${GCS_URL}/${dirname}`;
+
+  console.log(`generating iiif manifest with id "${id}"`);
+
+  // todo: this needs to be called when a file is updated
+  const iiifManifestJSON = generateIIIFManifest(`${id}`, file);
+  const iiifManifestFile = gcsBucket.file(
+    path.join(path.dirname(image.name), "iiif/index.json")
+  );
+
+  // write iiif manifest to bucket
+  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2));
+
+  // generate iiif image tiles
+  console.log(`generating iiif image tiles`);
+
   const zipPath = path.join(path.dirname(image.name), "iiif.zip");
-  const imageTilesWriteStream = gcsBucket.file(zipPath).createWriteStream();
+  const zipFile = gcsBucket.file(zipPath);
+  const imageTilesWriteStream = zipFile.createWriteStream();
 
   // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
-
-  // await sharp(image, {
-  //   limitInputPixels: true,
-  // })
-  //   .tile({
-  //     layout: "iiif",
-  //     id: "someid", // urljoin(url, directoryName),
-  //   })
-  //   .toFile(imageUploadStream);
-
   const pipeline = sharp();
 
   pipeline
     .tile({
       layout: "iiif3",
-      id: "someid", //urljoin(url, directoryName),
+      basename: "iiif",
+      id,
     })
     .pipe(imageTilesWriteStream);
 
-  return new Promise((resolve, reject) =>
-    // pipe image to sharp pipeline
+  return new Promise((resolve, _reject) => {
     gcsBucket
       .file(image.name)
       .createReadStream()
       .pipe(pipeline)
       .pipe(unzip.Parse())
       .on("entry", (entry) => {
-        console.log("entry", entry.path);
-
         const entryDestPath = path.join(path.dirname(image.name), entry.path);
         const entryDestFile = gcsBucket.file(entryDestPath);
-
-        entry
-          .pipe(entryDestFile.createWriteStream())
-          .on("error", (err) => {
-            console.log("Error", err);
-            reject();
-          })
-          .on("finish", () => {
-            console.log(`Finished extracting entry to ${entryDestPath}`);
-            // todo, delete zip file
-            resolve();
-          });
+        console.log(
+          `write zip file entry "${entry.path}" to "${entryDestPath}"`
+        );
+        entry.pipe(entryDestFile.createWriteStream());
       })
-  );
-
-  // pipeline
-  //   .tile({
-  //     layout: "iiif3",
-  //     id: "someid", //urljoin(url, directoryName),
-  //   })
-  //   .pipe(imageTilesWriteStream)
-  //   .pipe(unzip.Parse())
-  //   .on("entry", (entry) => {
-  //     console.log("entry", entry.path);
-
-  //     const entryDestPath = path.join(path.dirname(image.name), entry.path);
-  //     const entryDestFile = gcsBucket.file(entryDestPath);
-
-  //     entry
-  //       .pipe(entryDestFile.createWriteStream())
-  //       .on("error", (err) => {
-  //         console.log("Error", err);
-  //       })
-  //       .on("finish", () => {
-  //         console.log(`Finished extracting entry to ${destination}`);
-  //       });
-  //   });
-
-  // // send original image to pipeline
-  // const file = gcsBucket.file(image.name);
-  // file.createReadStream().pipe(pipeline);
-
-  // return new Promise((resolve, reject) => {
-  //   imageTilesWriteStream
-  //     .on("finish", async () => {
-  //       // await file.delete();
-  //       resolve();
-  //     })
-  //     .on("error", reject);
-  // });
+      .on("end", async () => {
+        // console.log(`finished extracting zip file`);
+        console.log(`finished extracting zip file, deleting ${zipPath}`);
+        // todo: this is a hack - could do something like https://github.com/mhr3/unzip-stream/issues/22#issuecomment-429256365 ?
+        setTimeout(async () => {
+          try {
+            await zipFile.delete();
+          } catch (e) {
+            console.log(`error deleting ${zipPath}: ${e}`);
+          }
+          resolve();
+        }, 1000);
+      });
+  });
 }
-
-// this works, but is triggered for every tile that's added
-// exports.unzip = functions
-//   .runWith({
-//     timeoutSeconds: 540,
-//     memory: "2GB",
-//   })
-//   .storage.object()
-//   .onFinalize(async (object) => {
-//     console.log("----------------------- unzip -----------------------");
-
-//     if (
-//       object.contentType !== "application/zip" &&
-//       object.contentType !== "application/x-zip-compressed"
-//     ) {
-//       console.log("Not a zip file.", object.contentType);
-//       return;
-//     }
-
-//     const file = gcsBucket.file(object.name);
-//     //const remoteDir = object.name.replace(".zip", "");
-
-//     console.log(`Downloading ${file.path}`);
-
-//     await file
-//       .createReadStream()
-//       .on("error", (err) => {
-//         console.error("createReadStream Error", err);
-//         return;
-//       })
-//       .on("end", () => {
-//         // The file is fully downloaded.
-//         console.log("Finished downloading.");
-//       })
-//       .pipe(unzip.Parse())
-//       .on("entry", (entry) => {
-//         const destination = gcsBucket.file(
-//           `${file.name.replace(".", "_")}/${entry.path}`
-//         );
-
-//         entry
-//           .pipe(destination.createWriteStream())
-//           .on("error", (err) => {
-//             console.log("Error", err);
-//           })
-//           .on("finish", () => {
-//             console.log(`Finished extracting ${destination.path}`);
-//           });
-//       });
-
-//     await file.delete();
-//   });
-
-// https://stackoverflow.com/a/59454505
-// https://leolabs.org/blog/firebase-cloud-functions-unzip-files
-// exports.unzip = functions
-//   .runWith({
-//     timeoutSeconds: 540,
-//     memory: "2GB",
-//   })
-//   .storage.object()
-//   .onFinalize(async (object) => {
-//     //console.log(object)
-//     if (
-//       object.contentType !== "application/zip" &&
-//       object.contentType !== "application/x-zip-compressed"
-//     ) {
-//       console.log("Not a zip file.", object.contentType);
-//       return;
-//     }
-
-//     const file = gcsBucket.file(object.name);
-//     //const remoteDir = object.name.replace(".zip", "");
-
-//     console.log(`Downloading ${file}`);
-
-//     await file
-//       .createReadStream()
-//       .on("error", (err) => {
-//         console.error("Error", err);
-//         return;
-//       })
-//       .on("end", () => {
-//         // The file is fully downloaded.
-//         console.log("Finished downloading.");
-//       })
-//       .pipe(unzipper.Parse())
-//       .on("entry", (entry) => {
-//         const destination = gcsBucket.file(
-//           `${file.name.replace(".", "_")}/${entry.path}`
-//         );
-
-//         entry
-//           .pipe(destination.createWriteStream())
-//           .on("error", (err) => {
-//             console.log("Error", err);
-//           })
-//           .on("finish", () => {
-//             console.log(`Finsihed extracting ${destination.path}`);
-//           });
-//       })
-//       .promise();
-
-//     await file.delete();
-//   });
 
 async function addToWeb3Storage(file) {
   const cid = await web3Storage.put([
@@ -248,7 +255,7 @@ async function addToWeb3Storage(file) {
   return cid;
 }
 
-async function processImage(originalFile) {
+async function processImage(originalFile, file) {
   // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
 
   // raw (the original image)
@@ -271,9 +278,11 @@ async function processImage(originalFile) {
   await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
   // generate IIIF image tiles
-  await generateIIIFImageTiles(originalFile);
+  await generateIIIFDerivatives(originalFile, file);
 
   // add the original file to web3.storage
+  // todo: add the derivatives to web3.storage
+  console.log("add to web3.storage");
   const cid = await addToWeb3Storage(originalFile);
 
   return { cid };
@@ -304,22 +313,19 @@ exports.fileCreated = functions
         case "image/png":
         case "image/jpeg":
         case "image/tif":
-        case "image/tiff":
+        case "image/tiff": {
           // process image
-          processedProps = await processImage(originalFile);
-          break;
-        case "audio/mpeg":
+          processedProps = await processImage(originalFile, file);
+        }
+        case "audio/mpeg": {
           // process audio
-          break;
-        case "video/mp4":
+        }
+        case "video/mp4": {
           // process video
-          break;
-        case "model/gltf-binary":
+        }
+        case "model/gltf-binary": {
           // process gltf
-          break;
-        default:
-          // reject
-          throw new Error("Unsupported file type", mimeType);
+        }
       }
 
       // update firestore record
