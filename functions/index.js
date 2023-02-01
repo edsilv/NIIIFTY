@@ -8,7 +8,6 @@ const { Web3Storage } = require("web3.storage");
 const path = require("path");
 const sharp = require("sharp");
 const unzip = require("unzip-stream");
-const { resolve } = require("path");
 
 const GCS_URL = process.env.GCS_URL;
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
@@ -215,31 +214,50 @@ async function generateIIIFDerivatives(image, file) {
     .pipe(imageTilesWriteStream);
 
   return new Promise((resolve, _reject) => {
+    const promises = [];
+
+    const unzipParser = unzip.Parse();
+
+    unzipParser.on("end", async () => {
+      console.log(
+        `waiting for ${promises.length} iiif.zip entries to finish streaming to ${dirname}/iiif`
+      );
+
+      await Promise.all(promises);
+
+      console.log(`finished extracting iiif.zip, deleting ${zipPath}`);
+
+      await zipFile.delete();
+
+      resolve();
+    });
+
     gcsBucket
       .file(image.name)
       .createReadStream()
       .pipe(pipeline)
-      .pipe(unzip.Parse())
+      .pipe(unzipParser)
       .on("entry", (entry) => {
         const entryDestPath = path.join(path.dirname(image.name), entry.path);
         const entryDestFile = gcsBucket.file(entryDestPath);
-        console.log(
-          `write zip file entry "${entry.path}" to "${entryDestPath}"`
-        );
-        entry.pipe(entryDestFile.createWriteStream());
-      })
-      .on("end", async () => {
-        // console.log(`finished extracting zip file`);
-        console.log(`finished extracting zip file, deleting ${zipPath}`);
-        // todo: this is a hack - could do something like https://github.com/mhr3/unzip-stream/issues/22#issuecomment-429256365 ?
-        setTimeout(async () => {
-          try {
-            await zipFile.delete();
-          } catch (e) {
-            console.log(`error deleting ${zipPath}: ${e}`);
-          }
-          resolve();
-        }, 1000);
+        const p = new Promise((resolve, reject) => {
+          console.log(`write zip file entry ${entry.path} to ${entryDestPath}`);
+          entry
+            .pipe(entryDestFile.createWriteStream())
+            .on("finish", () => {
+              console.log(
+                `finished streaming ${entry.path} to ${entryDestPath}`
+              );
+              resolve();
+            })
+            .on("error", (e) => {
+              console.log(
+                `error streaming ${entry.path} to ${entryDestPath}: ${e}`
+              );
+              reject();
+            });
+        });
+        promises.push(p);
       });
   });
 }
@@ -350,9 +368,28 @@ exports.fileDeleted = functions
     const fileId = context.params.fileId;
 
     // https://googleapis.dev/nodejs/storage/latest/Bucket.html#deleteFiles
-    gcsBucket.deleteFiles({
-      prefix: `${fileId}`,
+    // await gcsBucket.deleteFiles({
+    //   prefix: `${fileId}/`,
+    //   force: true,
+    // });
+
+    // Get a list of all the files in the folder
+    const [files] = await gcsBucket.getFiles({
+      prefix: `${fileId}/`,
     });
+
+    console.log(`Found ${files.length} files in ${fileId}/`);
+
+    // Delete all the files in the folder
+    const deletions = files.map((file) => {
+      console.log(`Deleting ${file.name}`);
+      return file.delete();
+    });
+
+    // Wait for all deletions to complete
+    await Promise.all(deletions);
+
+    console.log(`Finished deleting ${files.length} files in ${fileId}/`);
   });
 
 /**
