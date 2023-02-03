@@ -22,7 +22,12 @@ const web3Storage = new Web3Storage({ token: WEB3_STORAGE_API_KEY });
 
 async function resizeImage(image, name, width, height) {
   const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
-  const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream();
+  const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream({
+    metadata: {
+      contentType: "image/jpeg",
+    },
+  });
+  const file = gcsBucket.file(image.name);
 
   // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
   const pipeline = sharp();
@@ -37,20 +42,25 @@ async function resizeImage(image, name, width, height) {
     })
     .pipe(imageUploadStream);
 
-  gcsBucket.file(image.name).createReadStream().pipe(pipeline);
+  file.createReadStream().pipe(pipeline);
 
   return new Promise((resolve, reject) =>
-    imageUploadStream.on("finish", resolve).on("error", reject)
+    imageUploadStream
+      .on("finish", async () => {
+        resolve();
+      })
+      .on("error", reject)
   );
 }
 
-function generateIIIFManifest(path, data) {
+// returns iiif manifest json for a given file
+function getIIIFManifestJson(path, file) {
   const id = `${path}/iiif`;
   const manifestId = `${id}/index.json`;
   const canvasId = `${manifestId}/canvas/0`;
   const annotationPageId = `${manifestId}/canvas/0/annotationpage/0`;
   const annotationId = `${manifestId}/canvas/0/annotation/0`;
-  const { type, title, license } = data;
+  const { type, title, license } = file;
 
   let body, thumbnail;
 
@@ -60,7 +70,7 @@ function generateIIIFManifest(path, data) {
     case "image/tif":
     case "image/tiff": {
       body = {
-        id: `${id}/full.jpg`,
+        id: `${path}/full.jpg`,
         type: "Image",
         format: "image/jpeg",
         label: {
@@ -77,7 +87,7 @@ function generateIIIFManifest(path, data) {
 
       thumbnail = [
         {
-          id: `${id}/thumb.jpg`,
+          id: `${path}/thumb.jpg`,
           type: "Image",
         },
       ];
@@ -86,7 +96,7 @@ function generateIIIFManifest(path, data) {
     }
     case "model/gltf-binary": {
       body = {
-        id: `${id}/compressed.glb`,
+        id: `${path}/compressed.glb`,
         type: "Model",
         format: "model/gltf-binary",
         label: {
@@ -96,7 +106,7 @@ function generateIIIFManifest(path, data) {
 
       thumbnail = [
         {
-          id: `${id}/thumb.jpg`,
+          id: `${path}/thumb.jpg`,
           type: "Image",
         },
       ];
@@ -146,8 +156,8 @@ function generateIIIFManifest(path, data) {
 
   // metadata
   const kvp = [
-    ...(data.title ? [["Title", title]] : []),
-    ...(data.licence ? [["Licence", license]] : []),
+    ...(file.title ? [["Title", title]] : []),
+    ...(file.license ? [["License", license]] : []),
   ];
 
   manifest.metadata = kvp.map((x) => {
@@ -162,10 +172,10 @@ function generateIIIFManifest(path, data) {
   });
 
   // requiredStatement
-  if (data.attribution) {
+  if (file.attribution) {
     manifest.requiredStatement = {
       label: { en: ["Attribution"] },
-      value: { en: [data.attribution] },
+      value: { en: [file.attribution] },
     };
   }
 
@@ -175,8 +185,9 @@ function generateIIIFManifest(path, data) {
   return manifest;
 }
 
-async function generateIIIFDerivatives(image, file) {
-  console.log(`------ generating IIIF derivatives for ${image.name} ------`);
+// creates images tiles, info.json, and iiif manifest for a given image
+async function createIIIFDerivatives(image, file) {
+  console.log(`------ creating IIIF derivatives for ${image.name} ------`);
 
   const dirname = path.dirname(image.name);
 
@@ -184,16 +195,43 @@ async function generateIIIFDerivatives(image, file) {
 
   const id = `${GCS_URL}/${dirname}`;
 
-  console.log(`generating iiif manifest with id "${id}"`);
+  console.log(`creating iiif manifest with id "${id}"`);
 
-  // todo: this needs to be called when a file is updated
-  const iiifManifestJSON = generateIIIFManifest(`${id}`, file);
-  const iiifManifestFile = gcsBucket.file(
-    path.join(path.dirname(image.name), "iiif/index.json")
+  const iiifManifestJSON = getIIIFManifestJson(`${id}`, file);
+  const iiifManifestFilePath = path.join(
+    path.dirname(image.name),
+    "iiif/index.json"
   );
+  const iiifManifestFile = gcsBucket.file(iiifManifestFilePath);
 
   // write iiif manifest to bucket
-  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2));
+  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
+    metadata: {
+      contentType: "application/json",
+      cacheControl: "public, max-age=0",
+    },
+  });
+
+  // https://github.com/googleapis/google-cloud-node/issues/2334#issuecomment-304268078
+  // const jsonData = JSON.stringify(iiifManifestJSON, null, 2);
+
+  // Converts the in-memory JSON object to a Buffer
+  // const jsonBuffer = Buffer.from(JSON.stringify(jsonData), "utf-8");
+
+  // const stream = iiifManifestFile.createWriteStream({
+  //   metadata: {
+  //     contentType: "application/json",
+  //     cacheControl: "public, max-age=0",
+  //   },
+  // });
+
+  // stream.on("error", (err) => {
+  //   console.error(err);
+  // });
+
+  // stream.end(jsonBuffer, () => {
+  //   console.log(`iiif JSON uploaded`);
+  // });
 
   // generate iiif image tiles
   console.log(`generating iiif image tiles`);
@@ -202,7 +240,7 @@ async function generateIIIFDerivatives(image, file) {
   const zipFile = gcsBucket.file(zipPath);
   const imageTilesWriteStream = zipFile.createWriteStream();
 
-  // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
+  // Create Sharp pipeline for tiling the image
   const pipeline = sharp();
 
   pipeline
@@ -262,6 +300,26 @@ async function generateIIIFDerivatives(image, file) {
   });
 }
 
+async function updateImageDerivatives(fileId, file) {
+  console.log(`------ updating image derivatives for ${fileId} ------`);
+
+  // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
+  const id = `${GCS_URL}/${fileId}`;
+
+  const iiifManifestJSON = getIIIFManifestJson(`${id}`, file);
+  const iiifManifestFile = gcsBucket.file(path.join(fileId, "iiif/index.json"));
+
+  // write updated iiif manifest to bucket
+  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
+    metadata: {
+      contentType: "application/json",
+      cacheControl: "public, max-age=0",
+    },
+  });
+
+  console.log(`finished updating image derivatives for ${fileId}`);
+}
+
 async function addToWeb3Storage(file) {
   const cid = await web3Storage.put([
     {
@@ -273,6 +331,7 @@ async function addToWeb3Storage(file) {
   return cid;
 }
 
+// when an image is uploaded, create derivatives and add to web3 storage
 async function processImage(originalFile, file) {
   // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
 
@@ -296,7 +355,7 @@ async function processImage(originalFile, file) {
   await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
   // generate IIIF image tiles
-  await generateIIIFDerivatives(originalFile, file);
+  await createIIIFDerivatives(originalFile, file);
 
   // add the original file to web3.storage
   // todo: add the derivatives to web3.storage
@@ -357,6 +416,43 @@ exports.fileCreated = functions
     }
   });
 
+// when a file is updated in firestore
+exports.fileUpdated = functions
+  .region("europe-west3")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
+  .firestore.document("files/{fileId}")
+  .onUpdate(async (change, context) => {
+    const fileId = context.params.fileId;
+    // Get an object representing the document
+    const file = change.after.data();
+
+    // the original uploaded file cannot be changed, only the metadata associated with it.
+    // update any derivatives (like iiif manifests) that include the metadata
+
+    switch (file.type) {
+      case "image/png":
+      case "image/jpeg":
+      case "image/tif":
+      case "image/tiff": {
+        // update image derivatives
+        await updateImageDerivatives(fileId, file);
+      }
+      case "audio/mpeg": {
+        // process audio
+      }
+      case "video/mp4": {
+        // process video
+      }
+      case "model/gltf-binary": {
+        // process gltf
+      }
+    }
+  });
+
+// when a file is deleted in firestore
 exports.fileDeleted = functions
   .region("europe-west3")
   .runWith({
@@ -366,12 +462,6 @@ exports.fileDeleted = functions
   .firestore.document("files/{fileId}")
   .onDelete(async (_snap, context) => {
     const fileId = context.params.fileId;
-
-    // https://googleapis.dev/nodejs/storage/latest/Bucket.html#deleteFiles
-    // await gcsBucket.deleteFiles({
-    //   prefix: `${fileId}/`,
-    //   force: true,
-    // });
 
     // Get a list of all the files in the folder
     const [files] = await gcsBucket.getFiles({

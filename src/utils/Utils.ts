@@ -39,18 +39,23 @@ export const hash = (value: string) => {
 
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript/34842797#34842797
 export const hash2 = (value: string) => {
-  return value.split('').reduce((prevHash, currVal) =>
-    (((prevHash << 5) - prevHash) + currVal.charCodeAt(0)) | 0, 0);
+  return value
+    .split("")
+    .reduce(
+      (prevHash, currVal) =>
+        ((prevHash << 5) - prevHash + currVal.charCodeAt(0)) | 0,
+      0
+    );
 };
 
 export const getFileUrl = (name: string) => {
-  // name example: BgV2gRaOStRzwc6uMTZu/original.jpeg
+  // name example: BgV2gRaOStRzwc6uMTZu/original.jpg
   const firebaseConfig = config.environments[config.environment].firebaseConfig;
   return `https://${firebaseConfig.storageBucket}.storage.googleapis.com/${name}`;
 };
 
-export const getThumbnailUrl = (id: string) => {
-  return getFileUrl(`${id}/thumb.jpg`);
+export const getThumbnailUrl = (fileId: string) => {
+  return getFileUrl(`${fileId}/thumb.jpg`);
 };
 
 export const copyText = (text: string) => {
@@ -64,11 +69,11 @@ export const copyText = (text: string) => {
 };
 
 export function formatBytes(bytes, decimals = 2) {
-  if (!+bytes) return '0 Bytes';
+  if (!+bytes) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 

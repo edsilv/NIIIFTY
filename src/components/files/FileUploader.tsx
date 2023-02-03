@@ -368,14 +368,20 @@ const FileUpload = ({ file }: { file: FileExtended }) => {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [progress, setProgress] = useState(0);
   const { user, userAdapter } = useContext<UserContext>(UserContext);
-  const { t } = useTranslation();
+  // const { t } = useTranslation();
 
   const id = doc(collection(db, "files")).id;
 
   const uploadTaskRef = useRef<UploadTask>();
 
   useEffect(() => {
-    const extension = file.type.split("/")[1];
+    let extension = file.type.split("/")[1];
+
+    // use jpg instead of jpeg for consistency with other derivative files
+    if (extension === "jpeg") {
+      extension = "jpg";
+    }
+
     const fileName: string = `${id}/original.${extension}`;
     const storageRef = ref(storage, fileName);
 

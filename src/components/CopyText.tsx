@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import classNames from "classnames";
 import { copyText } from "@/utils/Utils";
 
-const CopyText = ({ id, text }: { id: string; text: string; }) => {
+const CopyText = ({ id, text }: { id: string; text: string }) => {
   const [copied, setCopied] = useState(false);
 
   const inputClasses = classNames(
