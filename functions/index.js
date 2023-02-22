@@ -8,6 +8,7 @@ const { Web3Storage } = require("web3.storage");
 const path = require("path");
 const sharp = require("sharp");
 const unzip = require("unzip-stream");
+const puppeteer = require("puppeteer");
 
 const GCS_URL = process.env.GCS_URL;
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
@@ -186,7 +187,7 @@ function getIIIFManifestJson(path, file) {
 }
 
 // creates images tiles, info.json, and iiif manifest for a given image
-async function createIIIFDerivatives(image, file) {
+async function createImageIIIFDerivatives(image, file) {
   console.log(`------ creating IIIF derivatives for ${image.name} ------`);
 
   const dirname = path.dirname(image.name);
@@ -208,30 +209,9 @@ async function createIIIFDerivatives(image, file) {
   await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
     metadata: {
       contentType: "application/json",
-      cacheControl: "public, max-age=0",
+      cacheControl: "public, max-age=60", // cache for 1 minute
     },
   });
-
-  // https://github.com/googleapis/google-cloud-node/issues/2334#issuecomment-304268078
-  // const jsonData = JSON.stringify(iiifManifestJSON, null, 2);
-
-  // Converts the in-memory JSON object to a Buffer
-  // const jsonBuffer = Buffer.from(JSON.stringify(jsonData), "utf-8");
-
-  // const stream = iiifManifestFile.createWriteStream({
-  //   metadata: {
-  //     contentType: "application/json",
-  //     cacheControl: "public, max-age=0",
-  //   },
-  // });
-
-  // stream.on("error", (err) => {
-  //   console.error(err);
-  // });
-
-  // stream.end(jsonBuffer, () => {
-  //   console.log(`iiif JSON uploaded`);
-  // });
 
   // generate iiif image tiles
   console.log(`generating iiif image tiles`);
@@ -313,7 +293,7 @@ async function updateImageDerivatives(fileId, file) {
   await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
     metadata: {
       contentType: "application/json",
-      cacheControl: "public, max-age=0",
+      cacheControl: "public, max-age=60", // cache for 1 minute
     },
   });
 
@@ -355,10 +335,149 @@ async function processImage(originalFile, file) {
   await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
   // generate IIIF image tiles
-  await createIIIFDerivatives(originalFile, file);
+  await createImageIIIFDerivatives(originalFile, file);
 
   // add the original file to web3.storage
   // todo: add the derivatives to web3.storage
+  console.log("add to web3.storage");
+  const cid = await addToWeb3Storage(originalFile);
+
+  return { cid };
+}
+
+function toHTMLAttributeString(args) {
+  if (!args) return "";
+
+  return Object.entries(args)
+    .map(([key, value]) => {
+      return `${key}="${value}"`;
+    })
+    .join("\n");
+}
+
+const modelViewerHTMLTemplate = (
+  modelViewerUrl,
+  //modelViewerArgs,
+  width,
+  height,
+  src,
+  backgroundColor,
+  devicePixelRatio
+) => {
+  const defaultAttributes = {
+    id: "snapshot-viewer",
+    style: `background-color: ${backgroundColor};`,
+    "interaction-prompt": "none",
+    src: src,
+  };
+
+  const defaultAttributesString = toHTMLAttributeString(defaultAttributes);
+  // const modelViewerArgsString = toHTMLAttributeString(modelViewerArgs);
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=${devicePixelRatio}">
+        <script type="module"
+          src="${modelViewerUrl}">
+        </script>
+        <style>
+          body {
+            margin: 0;
+          }
+          model-viewer {
+            --progress-bar-color: transparent;
+            width: ${width}px;
+            height: ${height}px;
+          }
+        </style>
+      </head>
+      <body>
+        <model-viewer
+          ${defaultAttributesString}
+        />
+      </body>
+    </html>
+  `;
+};
+
+// when a glb is uploaded, create derivatives and add to web3 storage
+async function processGLB(originalFile, file) {
+  // take screenshot for thumbnail
+  const url = originalFile.metadata.mediaLink;
+
+  const args = [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-setuid-sandbox",
+    "--no-zygote",
+    "--single-process",
+  ];
+
+  const headless = true;
+  const width = 1024;
+  const height = 768;
+  const devicePixelRatio = 1;
+  const modelViewerUrl =
+    "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
+  const src = url;
+  const backgroundColor = "#000000";
+
+  const browser = await puppeteer.launch({
+    args,
+    defaultViewport: {
+      width,
+      height,
+      deviceScaleFactor: devicePixelRatio,
+    },
+    headless,
+  });
+
+  const page = await browser.newPage();
+
+  const data = modelViewerHTMLTemplate(
+    modelViewerUrl,
+    width,
+    height,
+    src,
+    backgroundColor,
+    devicePixelRatio
+  );
+
+  // console.log("modelviewer template", data);
+
+  await page.setContent(data, {
+    waitUntil: ["domcontentloaded", "networkidle0"],
+  });
+
+  const element = await page.$("model-viewer");
+  const boundingBox = await element.boundingBox();
+
+  await page.setViewport({
+    width: Math.ceil(boundingBox.width),
+    height: Math.ceil(boundingBox.height),
+    deviceScaleFactor: devicePixelRatio,
+  });
+
+  const screenshot = await element.screenshot(); // returns a buffer
+
+  const screenshotFilePath = path.join(
+    path.dirname(originalFile.name),
+    "thumb.jpg"
+  );
+  const screenshotFile = gcsBucket.file(screenshotFilePath);
+
+  await screenshotFile.save(screenshot, {
+    metadata: {
+      contentType: "image/jpeg",
+    },
+  });
+
+  console.log(`Screenshot saved to ${screenshotFilePath}`);
+  await browser.close();
+
   console.log("add to web3.storage");
   const cid = await addToWeb3Storage(originalFile);
 
@@ -401,7 +520,8 @@ exports.fileCreated = functions
           // process video
         }
         case "model/gltf-binary": {
-          // process gltf
+          // process glb
+          processedProps = await processGLB(originalFile, file);
         }
       }
 
@@ -425,9 +545,16 @@ exports.fileUpdated = functions
   })
   .firestore.document("files/{fileId}")
   .onUpdate(async (change, context) => {
+    const previousValue = change.before.data();
     const fileId = context.params.fileId;
     // Get an object representing the document
     const file = change.after.data();
+
+    // only continue if something other that the processed flag has changed
+    if (previousValue.processed !== file.processed) {
+      console.log("only the processed flag has changed, skipping");
+      return;
+    }
 
     // the original uploaded file cannot be changed, only the metadata associated with it.
     // update any derivatives (like iiif manifests) that include the metadata

@@ -11,12 +11,11 @@ import { MimeType } from "@/utils/Types";
 import path from "path";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
-import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 
 type FileExtended = FileWithPath & { preview: string; error: boolean };
 
-export function FileUploader2(props) {
+export function FileUploader(props) {
   const [files, setFiles] = useState<FileExtended[]>([]);
 
   const acceptedFileTypes = [
@@ -375,11 +374,30 @@ const FileUpload = ({ file }: { file: FileExtended }) => {
   const uploadTaskRef = useRef<UploadTask>();
 
   useEffect(() => {
-    let extension = file.type.split("/")[1];
+    const uid: string = user.uid;
+    const title: string = path.basename(file.name, path.extname(file.name));
+
+    let extension: string;
+
+    if (file.type) {
+      extension = file.type.split("/")[1];
+    } else {
+      // fall back to getting the extension from the file name
+      extension = file.name.split(".").pop();
+    }
 
     // use jpg instead of jpeg for consistency with other derivative files
     if (extension === "jpeg") {
       extension = "jpg";
+    }
+
+    let type: MimeType;
+
+    if (file.type) {
+      type = file.type as MimeType;
+    } else if (extension === "glb") {
+      // glb files aren't recognised in browsers yet
+      type = "model/gltf-binary";
     }
 
     const fileName: string = `${id}/original.${extension}`;
@@ -419,9 +437,9 @@ const FileUpload = ({ file }: { file: FileExtended }) => {
         // file is now in cloud storage
         // create a file record in firestore (triggers fileCreated cloud function to generate derivatives)
         await add(userAdapter!, id, {
-          uid: user.uid,
-          type: file.type as MimeType,
-          title: path.basename(file.name, path.extname(file.name)),
+          uid,
+          type,
+          title,
         });
       }
     );
@@ -462,8 +480,8 @@ const FileUpload = ({ file }: { file: FileExtended }) => {
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
+              fillRule="evenodd"
+              clipRule="evenodd"
               d="M0 20C0 8.95385 8.95385 0 20 0C31.0462 0 40 8.95385 40 20C40 31.0462 31.0462 40 20 40C8.95385 40 0 31.0462 0 20ZM27.4051 16.279C27.5282 16.115 27.6173 15.928 27.6671 15.7291C27.7168 15.5302 27.7264 15.3234 27.6951 15.1207C27.6638 14.9181 27.5923 14.7237 27.4848 14.5491C27.3774 14.3745 27.2361 14.2231 27.0692 14.1039C26.9024 13.9847 26.7135 13.9 26.5135 13.8548C26.3134 13.8097 26.1064 13.805 25.9046 13.8409C25.7027 13.8769 25.5101 13.9529 25.338 14.0644C25.1659 14.1759 25.0179 14.3207 24.9026 14.4903L18.2646 23.7826L14.9333 20.4513C14.6417 20.1795 14.256 20.0316 13.8574 20.0386C13.4588 20.0456 13.0785 20.2071 12.7967 20.489C12.5148 20.7709 12.3533 21.1511 12.3463 21.5497C12.3393 21.9483 12.4872 22.334 12.759 22.6256L17.3744 27.241C17.5323 27.3988 17.7227 27.5204 17.9323 27.5972C18.1419 27.6741 18.3657 27.7044 18.5882 27.686C18.8107 27.6677 19.0266 27.6011 19.2208 27.491C19.415 27.3808 19.5829 27.2298 19.7128 27.0482L27.4051 16.279Z"
               fill="currentColor"
             />

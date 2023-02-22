@@ -68,6 +68,7 @@ i18n
           viewOnW3SLink: "View on web3.storage CDN",
           update: "Update",
           uploadFiles: "Upload Files",
+          uploadFile: "Upload File",
           uploadAFile: "Upload a File",
           uploadProgress: "Uploading {{progress}}%",
           usernameInvalid:
