@@ -55,13 +55,13 @@ async function resizeImage(image, name, width, height) {
 }
 
 // returns iiif manifest json for a given file
-function getIIIFManifestJson(path, file) {
+function getIIIFManifestJson(path, metadata) {
   const id = `${path}/iiif`;
   const manifestId = `${id}/index.json`;
   const canvasId = `${manifestId}/canvas/0`;
   const annotationPageId = `${manifestId}/canvas/0/annotationpage/0`;
   const annotationId = `${manifestId}/canvas/0/annotation/0`;
-  const { type, title, license } = file;
+  const { type, title, license } = metadata;
 
   let body, thumbnail;
 
@@ -97,7 +97,7 @@ function getIIIFManifestJson(path, file) {
     }
     case "model/gltf-binary": {
       body = {
-        id: `${path}/compressed.glb`,
+        id: `${path}/original.glb`,
         type: "Model",
         format: "model/gltf-binary",
         label: {
@@ -111,10 +111,14 @@ function getIIIFManifestJson(path, file) {
           type: "Image",
         },
       ];
+
+      break;
     }
     case "audio/mpeg": {
+      break;
     }
     case "video/mp4": {
+      break;
     }
   }
 
@@ -157,8 +161,8 @@ function getIIIFManifestJson(path, file) {
 
   // metadata
   const kvp = [
-    ...(file.title ? [["Title", title]] : []),
-    ...(file.license ? [["License", license]] : []),
+    ...(metadata.title ? [["Title", title]] : []),
+    ...(metadata.license ? [["License", license]] : []),
   ];
 
   manifest.metadata = kvp.map((x) => {
@@ -173,10 +177,10 @@ function getIIIFManifestJson(path, file) {
   });
 
   // requiredStatement
-  if (file.attribution) {
+  if (metadata.attribution) {
     manifest.requiredStatement = {
       label: { en: ["Attribution"] },
-      value: { en: [file.attribution] },
+      value: { en: [metadata.attribution] },
     };
   }
 
@@ -186,21 +190,17 @@ function getIIIFManifestJson(path, file) {
   return manifest;
 }
 
-// creates images tiles, info.json, and iiif manifest for a given image
-async function createImageIIIFDerivatives(image, file) {
-  console.log(`------ creating IIIF derivatives for ${image.name} ------`);
+async function createIIIFManifest(file, metadata) {
+  console.log(`------ creating IIIF manifest for ${file.name} ------`);
 
-  const dirname = path.dirname(image.name);
-
-  // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
-
+  const dirname = path.dirname(file.name);
   const id = `${GCS_URL}/${dirname}`;
 
   console.log(`creating iiif manifest with id "${id}"`);
 
-  const iiifManifestJSON = getIIIFManifestJson(`${id}`, file);
+  const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
   const iiifManifestFilePath = path.join(
-    path.dirname(image.name),
+    path.dirname(file.name),
     "iiif/index.json"
   );
   const iiifManifestFile = gcsBucket.file(iiifManifestFilePath);
@@ -213,10 +213,18 @@ async function createImageIIIFDerivatives(image, file) {
     },
   });
 
+  return id;
+}
+
+// creates iiif manifest, images tiles, and info.json for a given image
+async function createImageIIIFDerivatives(image, metadata) {
+  const id = await createIIIFManifest(image, metadata);
+
   // generate iiif image tiles
   console.log(`generating iiif image tiles`);
 
-  const zipPath = path.join(path.dirname(image.name), "iiif.zip");
+  const dirname = path.dirname(image.name);
+  const zipPath = path.join(dirname, "iiif.zip");
   const zipFile = gcsBucket.file(zipPath);
   const imageTilesWriteStream = zipFile.createWriteStream();
 
@@ -256,16 +264,16 @@ async function createImageIIIFDerivatives(image, file) {
       .pipe(pipeline)
       .pipe(unzipParser)
       .on("entry", (entry) => {
-        const entryDestPath = path.join(path.dirname(image.name), entry.path);
+        const entryDestPath = path.join(dirname, entry.path);
         const entryDestFile = gcsBucket.file(entryDestPath);
         const p = new Promise((resolve, reject) => {
-          console.log(`write zip file entry ${entry.path} to ${entryDestPath}`);
+          // console.log(`write zip file entry ${entry.path} to ${entryDestPath}`);
           entry
             .pipe(entryDestFile.createWriteStream())
             .on("finish", () => {
-              console.log(
-                `finished streaming ${entry.path} to ${entryDestPath}`
-              );
+              // console.log(
+              //   `finished streaming ${entry.path} to ${entryDestPath}`
+              // );
               resolve();
             })
             .on("error", (e) => {
@@ -280,13 +288,18 @@ async function createImageIIIFDerivatives(image, file) {
   });
 }
 
-async function updateImageDerivatives(fileId, file) {
+// creates iiif manifest for a given glb
+async function createGLBIIIFDerivatives(glb, metadata) {
+  await createIIIFManifest(glb, metadata);
+}
+
+async function updateDerivatives(fileId, metadata) {
   console.log(`------ updating image derivatives for ${fileId} ------`);
 
   // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
   const id = `${GCS_URL}/${fileId}`;
 
-  const iiifManifestJSON = getIIIFManifestJson(`${id}`, file);
+  const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
   const iiifManifestFile = gcsBucket.file(path.join(fileId, "iiif/index.json"));
 
   // write updated iiif manifest to bucket
@@ -312,7 +325,7 @@ async function addToWeb3Storage(file) {
 }
 
 // when an image is uploaded, create derivatives and add to web3 storage
-async function processImage(originalFile, file) {
+async function processImage(originalFile, metadata) {
   // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
 
   // raw (the original image)
@@ -334,8 +347,8 @@ async function processImage(originalFile, file) {
   // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
   await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
-  // generate IIIF image tiles
-  await createImageIIIFDerivatives(originalFile, file);
+  // generate IIIF manifest and image tiles
+  await createImageIIIFDerivatives(originalFile, metadata);
 
   // add the original file to web3.storage
   // todo: add the derivatives to web3.storage
@@ -357,7 +370,6 @@ function toHTMLAttributeString(args) {
 
 const modelViewerHTMLTemplate = (
   modelViewerUrl,
-  //modelViewerArgs,
   width,
   height,
   src,
@@ -372,7 +384,6 @@ const modelViewerHTMLTemplate = (
   };
 
   const defaultAttributesString = toHTMLAttributeString(defaultAttributes);
-  // const modelViewerArgsString = toHTMLAttributeString(modelViewerArgs);
 
   return `
     <!DOCTYPE html>
@@ -403,9 +414,11 @@ const modelViewerHTMLTemplate = (
 };
 
 // when a glb is uploaded, create derivatives and add to web3 storage
-async function processGLB(originalFile, file) {
+async function processGLB(originalFile, metadata) {
+  // todo: optimise glb using gltf-transform
+
   // take screenshot for thumbnail
-  const url = originalFile.metadata.mediaLink;
+  const url = originalFile.metadata.mediaLink; // todo: use optimised glb
 
   const args = [
     "--no-sandbox",
@@ -417,8 +430,8 @@ async function processGLB(originalFile, file) {
   ];
 
   const headless = true;
-  const width = 1024;
-  const height = 768;
+  const width = 800;
+  const height = 800;
   const devicePixelRatio = 1;
   const modelViewerUrl =
     "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
@@ -475,8 +488,13 @@ async function processGLB(originalFile, file) {
     },
   });
 
+  await resizeImage(screenshotFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+
   console.log(`Screenshot saved to ${screenshotFilePath}`);
   await browser.close();
+
+  // generate IIIF manifest
+  await createGLBIIIFDerivatives(originalFile, metadata);
 
   console.log("add to web3.storage");
   const cid = await addToWeb3Storage(originalFile);
@@ -490,7 +508,7 @@ exports.fileCreated = functions
   .region("europe-west3")
   .runWith({
     timeoutSeconds: 300,
-    memory: "1GB",
+    memory: "2GB",
   })
   .firestore.document("files/{fileId}")
   .onCreate(async (snap, context) => {
@@ -503,25 +521,29 @@ exports.fileCreated = functions
     if (files.length) {
       const originalFile = files[0];
 
-      const file = snap.data();
+      const metadata = snap.data();
 
-      switch (file.type) {
+      switch (metadata.type) {
         case "image/png":
         case "image/jpeg":
         case "image/tif":
         case "image/tiff": {
           // process image
-          processedProps = await processImage(originalFile, file);
+          processedProps = await processImage(originalFile, metadata);
+          break;
         }
         case "audio/mpeg": {
           // process audio
+          break;
         }
         case "video/mp4": {
           // process video
+          break;
         }
         case "model/gltf-binary": {
           // process glb
-          processedProps = await processGLB(originalFile, file);
+          processedProps = await processGLB(originalFile, metadata);
+          break;
         }
       }
 
@@ -548,10 +570,10 @@ exports.fileUpdated = functions
     const previousValue = change.before.data();
     const fileId = context.params.fileId;
     // Get an object representing the document
-    const file = change.after.data();
+    const metadata = change.after.data();
 
     // only continue if something other that the processed flag has changed
-    if (previousValue.processed !== file.processed) {
+    if (previousValue.processed !== metadata.processed) {
       console.log("only the processed flag has changed, skipping");
       return;
     }
@@ -559,22 +581,28 @@ exports.fileUpdated = functions
     // the original uploaded file cannot be changed, only the metadata associated with it.
     // update any derivatives (like iiif manifests) that include the metadata
 
-    switch (file.type) {
+    // todo: is a switch needed? or can we just call updateDerivatives for all types?
+    switch (metadata.type) {
       case "image/png":
       case "image/jpeg":
       case "image/tif":
       case "image/tiff": {
         // update image derivatives
-        await updateImageDerivatives(fileId, file);
+        await updateDerivatives(fileId, metadata);
+        break;
       }
       case "audio/mpeg": {
         // process audio
+        break;
       }
       case "video/mp4": {
         // process video
+        break;
       }
       case "model/gltf-binary": {
-        // process gltf
+        // update glb derivatives
+        await updateDerivatives(fileId, metadata);
+        break;
       }
     }
   });
