@@ -209,7 +209,7 @@ function getIIIFManifestJson(path, metadata) {
 }
 
 async function createIIIFManifest(file, metadata) {
-  console.log(`------ creating IIIF manifest for ${file.name} ------`);
+  console.log(`creating IIIF manifest for ${file.name}`);
 
   const dirname = path.dirname(file.name);
   const id = `${GCS_URL}/${dirname}`;
@@ -312,7 +312,7 @@ async function createGLBIIIFDerivatives(glb, metadata) {
 }
 
 async function updateDerivatives(fileId, metadata) {
-  console.log(`------ updating image derivatives for ${fileId} ------`);
+  console.log(`updating image derivatives for ${fileId}`);
 
   // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
   const id = `${GCS_URL}/${fileId}`;
@@ -344,6 +344,8 @@ async function addToWeb3Storage(file) {
 
 // when an image is uploaded, create derivatives and add to web3 storage
 async function processImage(originalFile, metadata) {
+  console.log(`--- started processing image ${originalFile.name} ---`);
+
   // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
 
   // raw (the original image)
@@ -372,6 +374,8 @@ async function processImage(originalFile, metadata) {
   // todo: add the derivatives to web3.storage
   console.log("add to web3.storage");
   const cid = await addToWeb3Storage(originalFile);
+
+  console.log(`--- finished processing image ${originalFile.name} ---`);
 
   return { cid };
 }
@@ -445,16 +449,6 @@ async function optimizeGLB(originalFile) {
   // this works, although streaming would be more efficient?
   const document = await io.read(originalFile.metadata.mediaLink);
 
-  // Configure compression settings.
-  // document
-  //   .createExtension(DracoMeshCompression)
-  //   .setRequired(true)
-  //   .setEncoderOptions({
-  //     method: DracoMeshCompression.EncoderMethod.EDGEBREAKER,
-  //     encodeSpeed: 5,
-  //     decodeSpeed: 5,
-  //   });
-
   await document.transform(
     dedup(),
     // instance({ min: 5 }),
@@ -487,15 +481,25 @@ async function optimizeGLB(originalFile) {
       contentType: "model/gltf-binary",
     },
   });
+
+  return optimizedFile;
 }
 
 // when a glb is uploaded, create derivatives and add to web3 storage
 async function processGLB(originalFile, metadata) {
+  console.log(`--- started processing glb ${originalFile.name} ---`);
+
+  // set the correct mime type on the original file as this is not passed on upload
+  await originalFile.setMetadata({
+    contentType: "model/gltf-binary",
+  });
+
   // optimise glb using gltf-transform
-  await optimizeGLB(originalFile);
+  const optimizedFile = await optimizeGLB(originalFile);
 
   // take screenshot for thumbnail
-  const url = originalFile.metadata.mediaLink; // todo: use optimised glb
+  const url = optimizedFile.metadata.mediaLink;
+  // const url = originalFile.metadata.mediaLink; // todo: use optimised glb
 
   const args = [
     "--no-sandbox",
@@ -576,6 +580,8 @@ async function processGLB(originalFile, metadata) {
   console.log("add to web3.storage");
   const cid = await addToWeb3Storage(originalFile);
 
+  console.log(`--- finished processing glb ${originalFile.name} ---`);
+
   return { cid };
 }
 
@@ -584,7 +590,7 @@ async function processGLB(originalFile, metadata) {
 exports.fileCreated = functions
   .region("europe-west3")
   .runWith({
-    timeoutSeconds: 300,
+    timeoutSeconds: 540, // max
     memory: "2GB",
   })
   .firestore.document("files/{fileId}")
