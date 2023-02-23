@@ -9,6 +9,23 @@ const path = require("path");
 const sharp = require("sharp");
 const unzip = require("unzip-stream");
 const puppeteer = require("puppeteer");
+const { NodeIO } = require("@gltf-transform/core");
+const {
+  KHRONOS_EXTENSIONS,
+  DracoMeshCompression,
+} = require("@gltf-transform/extensions");
+const {
+  dedup,
+  flatten,
+  join,
+  weld,
+  resample,
+  prune,
+  sparse,
+  // textureCompress,
+  draco,
+} = require("@gltf-transform/functions");
+const fetch = require("node-fetch");
 
 const GCS_URL = process.env.GCS_URL;
 const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
@@ -97,7 +114,7 @@ function getIIIFManifestJson(path, metadata) {
     }
     case "model/gltf-binary": {
       body = {
-        id: `${path}/original.glb`,
+        id: `${path}/optimized.glb`,
         type: "Model",
         format: "model/gltf-binary",
         label: {
@@ -413,9 +430,68 @@ const modelViewerHTMLTemplate = (
   `;
 };
 
+async function optimizeGLB(originalFile) {
+  console.log("optimizing glb", originalFile.name);
+
+  const io = new NodeIO(fetch)
+    .registerExtensions([KHRONOS_EXTENSIONS, DracoMeshCompression])
+    .registerDependencies({
+      "draco3d.encoder": await new DracoEncoderModule(),
+      // "draco3d.decoder": await new DracoDecoderModule(),
+    })
+    .setAllowHTTP(true);
+
+  // this works, although streaming would be more efficient?
+  const document = await io.read(originalFile.metadata.mediaLink);
+
+  // Configure compression settings.
+  document
+    .createExtension(DracoMeshCompression)
+    .setRequired(true)
+    .setEncoderOptions({
+      method: DracoMeshCompression.EncoderMethod.EDGEBREAKER,
+      encodeSpeed: 5,
+      decodeSpeed: 5,
+    });
+
+  await document.transform(
+    dedup(),
+    // instance({ min: 5 }),
+    flatten(),
+    join(),
+    weld({ tolerance: 0.0001 }),
+    // simplify({ simplifier: MeshoptSimplifier, ratio: 0.001, error: 0.0001 }),
+    resample(),
+    prune({ keepAttributes: false, keepLeaves: false }),
+    sparse(),
+    // this errors if the model doesn't have any textures
+    // textureCompress({
+    //   encoder: sharp,
+    //   targetFormat: "auto",
+    //   resize: [2048, 2048],
+    // }),
+    draco()
+  );
+
+  const glb = await io.writeBinary(document);
+
+  const optimizedModelFilePath = path.join(
+    path.dirname(originalFile.name),
+    "optimized.glb"
+  );
+  const optimizedFile = gcsBucket.file(optimizedModelFilePath);
+
+  await optimizedFile.save(glb, {
+    metadata: {
+      contentType: "model/gltf-binary",
+    },
+  });
+}
+
 // when a glb is uploaded, create derivatives and add to web3 storage
 async function processGLB(originalFile, metadata) {
-  // todo: optimise glb using gltf-transform
+  // optimise glb using gltf-transform
+  await optimizeGLB(originalFile);
 
   // take screenshot for thumbnail
   const url = originalFile.metadata.mediaLink; // todo: use optimised glb

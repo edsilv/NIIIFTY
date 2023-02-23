@@ -145,7 +145,9 @@ export function EditFile({ id }: { id: string }) {
         <form onSubmit={handleSubmit} className="flex flex-col">
           {/* thumbnail */}
           <div className="w-64">
-            <ImageWithRetry src={getFileUrl(`${id}/thumb.jpg`)} alt={title} />
+            <a href={getFileUrl(`${id}/thumb.jpg`)} target="_blank">
+              <img src={getFileUrl(`${id}/thumb.jpg`)} alt={title} />
+            </a>
           </div>
           {/* title */}
           <label
