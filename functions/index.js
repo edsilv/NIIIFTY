@@ -52,6 +52,7 @@ async function resizeImage(image, name, width, height) {
   const pipeline = sharp();
 
   pipeline
+    .jpeg()
     .resize({
       width,
       height,
