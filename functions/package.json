@@ -18,6 +18,7 @@
     "@gltf-transform/functions": "^3.0.2",
     "@google-cloud/firestore": "4.4.0",
     "cors": "2.8.5",
+    "draco3dgltf": "^1.5.6",
     "extract-zip": "2.0.1",
     "firebase-admin": "8.10.0",
     "firebase-functions": "3.6.1",

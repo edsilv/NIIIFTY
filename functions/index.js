@@ -25,6 +25,7 @@ const {
   // textureCompress,
   draco,
 } = require("@gltf-transform/functions");
+const draco3d = require("draco3dgltf");
 const fetch = require("node-fetch");
 
 const GCS_URL = process.env.GCS_URL;
@@ -434,10 +435,10 @@ async function optimizeGLB(originalFile) {
   console.log("optimizing glb", originalFile.name);
 
   const io = new NodeIO(fetch)
-    .registerExtensions([KHRONOS_EXTENSIONS, DracoMeshCompression])
+    .registerExtensions(KHRONOS_EXTENSIONS)
     .registerDependencies({
-      "draco3d.encoder": await new DracoEncoderModule(),
-      // "draco3d.decoder": await new DracoDecoderModule(),
+      "draco3d.decoder": await draco3d.createDecoderModule(), // Optional.
+      "draco3d.encoder": await draco3d.createEncoderModule(), // Optional.
     })
     .setAllowHTTP(true);
 
@@ -445,14 +446,14 @@ async function optimizeGLB(originalFile) {
   const document = await io.read(originalFile.metadata.mediaLink);
 
   // Configure compression settings.
-  document
-    .createExtension(DracoMeshCompression)
-    .setRequired(true)
-    .setEncoderOptions({
-      method: DracoMeshCompression.EncoderMethod.EDGEBREAKER,
-      encodeSpeed: 5,
-      decodeSpeed: 5,
-    });
+  // document
+  //   .createExtension(DracoMeshCompression)
+  //   .setRequired(true)
+  //   .setEncoderOptions({
+  //     method: DracoMeshCompression.EncoderMethod.EDGEBREAKER,
+  //     encodeSpeed: 5,
+  //     decodeSpeed: 5,
+  //   });
 
   await document.transform(
     dedup(),
