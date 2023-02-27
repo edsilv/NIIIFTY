@@ -13,6 +13,7 @@ import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { t } from "i18next";
 import * as HoverCard from "@radix-ui/react-hover-card";
+import { maxFileSize } from "@/utils/Config";
 
 type FileExtended = FileWithPath & { preview: string; errorMessage: string };
 
@@ -64,7 +65,7 @@ export function FileUploader(props) {
     //   'video/mp4': [],
     // },
     maxFiles: 10,
-    maxSize: 104857600, // 100MB
+    maxSize: maxFileSize, // 100MB
     multiple: true,
     onDrop: (files, rejections) => {
       let validatedeFiles: FileExtended[] = [];
@@ -85,7 +86,7 @@ export function FileUploader(props) {
       });
 
       rejections.forEach((rejection) => {
-        // is file size too big?
+        // is file size too large?
         if (rejection.errors[0].code === "file-too-large") {
           (rejection.file as FileExtended).errorMessage = t("fileTooLarge", {
             val: 100,

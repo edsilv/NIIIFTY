@@ -29,3 +29,4 @@ export const theme = config.environments[env].theme;
 export const site = config.environments[env].site;
 export const title = config.environments[env].title;
 export const description = config.environments[env].description;
+export const maxFileSize = config.environments[env].maxFileSize;

@@ -21,6 +21,7 @@ export interface Environment {
   headerTitle: string;
   title: string;
   description: string;
+  maxFileSize: number;
 }
 
 export type EnvironmentType = "default" | "staging";
@@ -43,6 +44,7 @@ export default {
       title: "NIIIFTY",
       description:
         "Store large images, 3D models, and audio/video content as IIIF on IPFS.",
+      maxFileSize: 104857600, // 100MB
       // email: "info@mnemoscene.io",
       firebaseConfig: {
         apiKey: "AIzaSyDo_GRo83y6OH-nh_E3ORvoXvgPXRpexro",
