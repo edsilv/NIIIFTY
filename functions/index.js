@@ -613,6 +613,7 @@ exports.fileCreated = functions
         case "image/tif":
         case "image/tiff": {
           // process image
+          // todo: add try/catch so that if it fails it's marked in the db
           processedProps = await processImage(originalFile, metadata);
           break;
         }
@@ -626,7 +627,19 @@ exports.fileCreated = functions
         }
         case "model/gltf-binary": {
           // process glb
-          processedProps = await processGLB(originalFile, metadata);
+          try {
+            processedProps = await processGLB(originalFile, metadata);
+          } catch (error) {
+            console.log("error processing glb", error);
+            // update firestore record
+            return snap.ref.set(
+              {
+                processingError: true,
+              },
+              { merge: true }
+            );
+          }
+
           break;
         }
       }

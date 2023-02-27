@@ -13,7 +13,7 @@ import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { t } from "i18next";
 
-type FileExtended = FileWithPath & { preview: string; error: boolean };
+type FileExtended = FileWithPath & { preview: string; errorMessage: string };
 
 export function FileUploader(props) {
   const [files, setFiles] = useState<FileExtended[]>([]);
@@ -63,25 +63,33 @@ export function FileUploader(props) {
     //   'video/mp4': [],
     // },
     maxFiles: 10,
-    maxSize: 524288000, // 500MB
+    maxSize: 104857600, // 100MB
     multiple: true,
-    onDrop: (files) => {
+    onDrop: (files, rejections) => {
       let validatedeFiles: FileExtended[] = [];
 
       files.forEach((file: FileWithPath) => {
         // is file type supported?
-        if (isFileAccepted(file)) {
+        if (!isFileAccepted(file)) {
+          (file as FileExtended).errorMessage = "File type not supported";
           // only shows preview for images - looks odd alongside other icons
           // if (isPreviewSupported(file)) {
           //   Object.assign(file, {
           //     preview: URL.createObjectURL(file)
           //   });
           // }
-        } else {
-          (file as FileExtended).error = true;
         }
 
         validatedeFiles.push(file as FileExtended);
+      });
+
+      rejections.forEach((rejection) => {
+        // is file size too big?
+        if (rejection.errors[0].code === "file-too-large") {
+          (rejection.file as FileExtended).errorMessage = "File too large";
+        }
+
+        validatedeFiles.push(rejection.file as FileExtended);
       });
 
       setFiles(validatedeFiles);
@@ -158,7 +166,7 @@ export function FileUploader(props) {
   };
 
   const Thumbnail = ({ file }: { file: FileExtended }) => {
-    if (file.error) {
+    if (file.errorMessage) {
       return <ErrorIcon />;
     }
 
@@ -197,7 +205,7 @@ export function FileUploader(props) {
             <td
               className={cx(
                 "hidden h-20 w-20 pr-4 text-gray-400 sm:table-cell",
-                file.error ? "text-red-500" : "text-gray-400"
+                file.errorMessage ? "text-red-500" : "text-gray-400"
               )}
             >
               <Thumbnail file={file} />
@@ -210,7 +218,7 @@ export function FileUploader(props) {
               </span>
             </td>
             <td className="overflow-hidden whitespace-nowrap">
-              {!file.error && <FileUpload file={file} />}
+              {!file.errorMessage && <FileUpload file={file} />}
             </td>
           </tr>
         ))}
