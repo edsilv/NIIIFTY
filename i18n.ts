@@ -30,7 +30,7 @@ i18n
           email: "hello@mnemoscene.io",
           fileNotFound: "File not found",
           filesFound: "{{val}} files found.",
-          fileTooLarge: "File too large",
+          fileTooLarge: "File too large ({{val}}MB max)",
           fileTypeNotSupported: "File type not supported",
           fullName: "Full name",
           fullNameCannotBeEmpty: "Full name cannot be empty",

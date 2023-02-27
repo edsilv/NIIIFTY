@@ -12,6 +12,7 @@ import path from "path";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { t } from "i18next";
+import * as HoverCard from "@radix-ui/react-hover-card";
 
 type FileExtended = FileWithPath & { preview: string; errorMessage: string };
 
@@ -71,7 +72,7 @@ export function FileUploader(props) {
       files.forEach((file: FileWithPath) => {
         // is file type supported?
         if (!isFileAccepted(file)) {
-          (file as FileExtended).errorMessage = "File type not supported";
+          (file as FileExtended).errorMessage = t("fileTypeNotSupported");
           // only shows preview for images - looks odd alongside other icons
           // if (isPreviewSupported(file)) {
           //   Object.assign(file, {
@@ -86,7 +87,9 @@ export function FileUploader(props) {
       rejections.forEach((rejection) => {
         // is file size too big?
         if (rejection.errors[0].code === "file-too-large") {
-          (rejection.file as FileExtended).errorMessage = "File too large";
+          (rejection.file as FileExtended).errorMessage = t("fileTooLarge", {
+            val: 100,
+          });
         }
 
         validatedeFiles.push(rejection.file as FileExtended);
@@ -149,25 +152,42 @@ export function FileUploader(props) {
     );
   };
 
-  const ErrorIcon = () => {
+  const ErrorIcon = ({ message }: { message: string }) => {
     return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path
-          fillRule="evenodd"
-          d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
-          clipRule="evenodd"
-        />
-      </svg>
+      <HoverCard.Root>
+        <HoverCard.Trigger asChild>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </HoverCard.Trigger>
+        <HoverCard.Portal>
+          <HoverCard.Content
+            className="data-[side=bottom]:animate-slideUpAndFade data-[side=right]:animate-slideLeftAndFade data-[side=left]:animate-slideRightAndFade data-[side=top]:animate-slideDownAndFade data-[state=open]:transition-all w-[300px] rounded-md bg-white p-5 shadow-[hsl(206_22%_7%_/_35%)_0px_10px_38px_-10px,hsl(206_22%_7%_/_20%)_0px_10px_20px_-15px]"
+            sideOffset={5}
+          >
+            <div className="flex flex-col gap-[7px]">
+              <div className="flex flex-col gap-[15px] text-sm dark:text-black">
+                {message}
+              </div>
+            </div>
+            <HoverCard.Arrow className="fill-white" />
+          </HoverCard.Content>
+        </HoverCard.Portal>
+      </HoverCard.Root>
     );
   };
 
   const Thumbnail = ({ file }: { file: FileExtended }) => {
     if (file.errorMessage) {
-      return <ErrorIcon />;
+      return <ErrorIcon message={file.errorMessage} />;
     }
 
     // preview thumbnails are available for images
