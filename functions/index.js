@@ -2,19 +2,15 @@
 
 // todo: upgrade to functions v2 when out of beta
 // https://firebase.google.com/docs/functions/beta/get-started
-const functions = require("firebase-functions");
-const { Storage } = require("@google-cloud/storage");
-const { Web3Storage } = require("web3.storage");
-const path = require("path");
-const sharp = require("sharp");
-const unzip = require("unzip-stream");
-const puppeteer = require("puppeteer");
-const { NodeIO } = require("@gltf-transform/core");
-const {
-  KHRONOS_EXTENSIONS,
-  DracoMeshCompression,
-} = require("@gltf-transform/extensions");
-const {
+import functions from "firebase-functions";
+import { Storage } from "@google-cloud/storage";
+import path from "path";
+import sharp from "sharp";
+import unzip from "unzip-stream";
+import puppeteer from "puppeteer";
+import { NodeIO } from "@gltf-transform/core";
+import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
+import {
   dedup,
   flatten,
   join,
@@ -24,12 +20,12 @@ const {
   sparse,
   // textureCompress,
   draco,
-} = require("@gltf-transform/functions");
-const draco3d = require("draco3dgltf");
-const fetch = require("node-fetch");
+} from "@gltf-transform/functions";
+import draco3d from "draco3dgltf";
+import fetch from "node-fetch";
+import addToWeb3Storage from "./addToWeb3Storage.js";
 
 const GCS_URL = process.env.GCS_URL;
-const WEB3_STORAGE_API_KEY = process.env.WEB3_STORAGE_API_KEY;
 const PROJECT_ID = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
 const REGULAR_WIDTH = 1080;
 const SMALL_WIDTH = 400;
@@ -37,7 +33,6 @@ const THUMB_WIDTH = 200;
 
 const gcs = new Storage();
 const gcsBucket = gcs.bucket(`${PROJECT_ID}.appspot.com`);
-const web3Storage = new Web3Storage({ token: WEB3_STORAGE_API_KEY });
 
 async function resizeImage(image, name, width, height) {
   const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
@@ -332,55 +327,6 @@ async function updateDerivatives(fileId, metadata) {
   console.log(`finished updating image derivatives for ${fileId}`);
 }
 
-async function addToWeb3Storage(file) {
-  const cid = await web3Storage.put([
-    {
-      name: file.name.split("/").pop(),
-      stream: () => gcsBucket.file(file.name).createReadStream(),
-    },
-  ]);
-
-  return cid;
-}
-
-// when an image is uploaded, create derivatives and add to web3 storage
-async function processImage(originalFile, metadata) {
-  console.log(`--- started processing image ${originalFile.name} ---`);
-
-  // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
-
-  // raw (the original image)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3"
-
-  // full (the raw image but optimised at 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
-  await resizeImage(originalFile, "full", null, null);
-
-  // regular (width 1080px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
-  await resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
-
-  // small (width 400px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
-  await resizeImage(originalFile, "small", SMALL_WIDTH, null);
-
-  // thumb (width 200px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
-  await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
-
-  // generate IIIF manifest and image tiles
-  await createImageIIIFDerivatives(originalFile, metadata);
-
-  // add the original file to web3.storage
-  // todo: add the derivatives to web3.storage
-  console.log("add to web3.storage");
-  const cid = await addToWeb3Storage(originalFile);
-
-  console.log(`--- finished processing image ${originalFile.name} ---`);
-
-  return { cid };
-}
-
 function toHTMLAttributeString(args) {
   if (!args) return "";
 
@@ -435,6 +381,44 @@ const modelViewerHTMLTemplate = (
     </html>
   `;
 };
+
+// when an image is uploaded, create derivatives and add to web3 storage
+async function processImage(originalFile, metadata) {
+  console.log(`--- started processing image ${originalFile.name} ---`);
+
+  // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
+
+  // raw (the original image)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3"
+
+  // full (the raw image but optimised at 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
+  await resizeImage(originalFile, "full", null, null);
+
+  // regular (width 1080px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
+  await resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
+
+  // small (width 400px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
+  await resizeImage(originalFile, "small", SMALL_WIDTH, null);
+
+  // thumb (width 200px, 80% compression)
+  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
+  await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+
+  // generate IIIF manifest and image tiles
+  await createImageIIIFDerivatives(originalFile, metadata);
+
+  // add the original file to web3.storage
+  // todo: add the derivatives to web3.storage
+  console.log("add to web3.storage");
+  const cid = await addToWeb3Storage(originalFile);
+
+  console.log(`--- finished processing image ${originalFile.name} ---`);
+
+  return { cid };
+}
 
 async function optimizeGLB(originalFile) {
   console.log("optimizing glb", originalFile.name);
@@ -588,7 +572,7 @@ async function processGLB(originalFile, metadata) {
 
 // when a file is created in firestore,
 // generate derivatives, and replicate to web3.storage
-exports.fileCreated = functions
+export const fileCreated = functions
   .region("europe-west3")
   .runWith({
     timeoutSeconds: 540, // max
@@ -656,7 +640,7 @@ exports.fileCreated = functions
   });
 
 // when a file is updated in firestore
-exports.fileUpdated = functions
+export const fileUpdated = functions
   .region("europe-west3")
   .runWith({
     timeoutSeconds: 300,
@@ -705,7 +689,7 @@ exports.fileUpdated = functions
   });
 
 // when a file is deleted in firestore
-exports.fileDeleted = functions
+export const fileDeleted = functions
   .region("europe-west3")
   .runWith({
     timeoutSeconds: 300,
