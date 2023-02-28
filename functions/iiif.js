@@ -242,3 +242,8 @@ export async function createImageIIIFDerivatives(image, metadata) {
 export async function createGLBIIIFDerivatives(glb, metadata) {
   await createIIIFManifest(glb, metadata);
 }
+
+// creates iiif manifest for a given mp4
+export async function createMP4IIIFDerivatives(mp4, metadata) {
+  await createIIIFManifest(mp4, metadata);
+}

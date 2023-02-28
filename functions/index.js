@@ -10,10 +10,12 @@ import {
   createImageIIIFDerivatives,
   getIIIFManifestJson,
   createGLBIIIFDerivatives,
+  createMP4IIIFDerivatives,
 } from "./iiif.js";
 import optimizeGLB from "./optimizeGLB.js";
 import gcsBucket from "./gcsBucket.js";
 import screenshotGLB from "./screenshotGLB.js";
+import generateMP4Thumbnail from "./generateMP4Thumbnail.js";
 import {
   GCS_URL,
   REGULAR_WIDTH,
@@ -104,6 +106,23 @@ async function processGLB(originalFile, metadata) {
   return { cid };
 }
 
+// when an mp4 is uploaded, create derivatives and add to web3 storage
+async function processMP4(originalFile, metadata) {
+  console.log(`--- started processing mp4 ${originalFile.name} ---`);
+
+  await generateMP4Thumbnail(originalFile);
+
+  // generate IIIF manifest
+  await createMP4IIIFDerivatives(originalFile, metadata);
+
+  // console.log("add to web3.storage");
+  const cid = await addToWeb3Storage(originalFile);
+
+  console.log(`--- finished processing mp4 ${originalFile.name} ---`);
+
+  return { cid };
+}
+
 // when a file is created in firestore,
 // generate derivatives, and replicate to web3.storage
 export const fileCreated = functions
@@ -141,22 +160,23 @@ export const fileCreated = functions
         }
         case "video/mp4": {
           // process video
+          processedProps = await processMP4(originalFile, metadata);
           break;
         }
         case "model/gltf-binary": {
           // process glb
-          try {
-            processedProps = await processGLB(originalFile, metadata);
-          } catch (error) {
-            console.log("error processing glb", error);
-            // update firestore record
-            return snap.ref.set(
-              {
-                processingError: true,
-              },
-              { merge: true }
-            );
-          }
+          // try {
+          processedProps = await processGLB(originalFile, metadata);
+          // } catch (error) {
+          //   console.log("error processing glb", error);
+          //   // update firestore record
+          //   return snap.ref.set(
+          //     {
+          //       processingError: true,
+          //     },
+          //     { merge: true }
+          //   );
+          // }
 
           break;
         }
