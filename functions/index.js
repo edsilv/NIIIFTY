@@ -22,7 +22,7 @@ import {
 } from "./constants.js";
 
 async function updateDerivatives(fileId, metadata) {
-  console.log(`updating image derivatives for ${fileId}`);
+  console.log(`updating derivatives for ${fileId}`);
 
   // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
   const id = `${GCS_URL}/${fileId}`;
@@ -38,7 +38,7 @@ async function updateDerivatives(fileId, metadata) {
     },
   });
 
-  console.log(`finished updating image derivatives for ${fileId}`);
+  console.log(`finished updating derivatives for ${fileId}`);
 }
 
 // when an image is uploaded, create derivatives and add to web3 storage

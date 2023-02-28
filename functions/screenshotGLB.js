@@ -1,9 +1,63 @@
 import puppeteer from "puppeteer";
-import modelViewerHTMLTemplate from "./modelViewerHTMLTemplate.js";
 import gcsBucket from "./gcsBucket.js";
 import path from "path";
 import resizeImage from "./resizeImage.js";
 import { THUMB_WIDTH } from "./constants.js";
+
+function toHTMLAttributeString(args) {
+  if (!args) return "";
+
+  return Object.entries(args)
+    .map(([key, value]) => {
+      return `${key}="${value}"`;
+    })
+    .join("\n");
+}
+
+function modelViewerHTMLTemplate(
+  modelViewerUrl,
+  width,
+  height,
+  src,
+  backgroundColor,
+  devicePixelRatio
+) {
+  const defaultAttributes = {
+    id: "snapshot-viewer",
+    style: `background-color: ${backgroundColor};`,
+    "interaction-prompt": "none",
+    src: src,
+  };
+
+  const defaultAttributesString = toHTMLAttributeString(defaultAttributes);
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=${devicePixelRatio}">
+        <script type="module"
+          src="${modelViewerUrl}">
+        </script>
+        <style>
+          body {
+            margin: 0;
+          }
+          model-viewer {
+            --progress-bar-color: transparent;
+            width: ${width}px;
+            height: ${height}px;
+          }
+        </style>
+      </head>
+      <body>
+        <model-viewer
+          ${defaultAttributesString}
+        />
+      </body>
+    </html>
+  `;
+}
 
 export default async function screenshotGLB(file) {
   // take screenshot for thumbnail
