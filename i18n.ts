@@ -65,6 +65,7 @@ i18n
           title: "Title",
           titleInvalid:
             "Title must be at least one character and contain only letters, numbers, spaces, hyphens, and underscores.",
+          type: "Type",
           viewOnW3SLink: "View on web3.storage CDN",
           update: "Update",
           uploadFiles: "Upload Files",

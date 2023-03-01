@@ -6,6 +6,8 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 import resizeImage from "./resizeImage.js";
+import ffprobe from "ffprobe";
+import ffprobeStatic from "ffprobe-static";
 
 function promisifyCommand(command) {
   return new Promise((resolve, reject) => {
@@ -13,7 +15,7 @@ function promisifyCommand(command) {
   });
 }
 
-export default async function generateMP4Thumbnail(mp4) {
+export default async function downloadAndProcessMP4(mp4) {
   const uniqueId = Date.now();
   const tempFilePath = path.join(os.tmpdir(), `${uniqueId}.mp4`);
   const targetTempFileName = `${uniqueId}.jpg`;
@@ -35,14 +37,25 @@ export default async function generateMP4Thumbnail(mp4) {
 
   console.log("thumbnail created at", targetTempFilePath);
 
-  // Uploading the mp4.
+  // Upload the thumbnail.
   await gcsBucket.upload(targetTempFilePath, {
     destination: targetStorageFilePath,
   });
 
   console.log("thumbnail uploaded to", targetStorageFilePath);
 
-  // Once the thumbnail has been uploaded delete the local file to free up disk space.
+  let duration;
+
+  const info = await ffprobe(tempFilePath, { path: ffprobeStatic.path });
+
+  if (info && info.streams && info.streams.length) {
+    duration = Number(info.streams[0].duration);
+    console.log("mp4 duration", duration);
+  } else {
+    console.log("couldn't retrieve video duration");
+  }
+
+  // Once the thumbnail has been uploaded delete the local files to free up disk space.
   fs.unlinkSync(tempFilePath);
   fs.unlinkSync(targetTempFilePath);
 
@@ -51,4 +64,6 @@ export default async function generateMP4Thumbnail(mp4) {
   await resizeImage(thumbnailFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
   console.log("thumbnail resized");
+
+  return { duration };
 }

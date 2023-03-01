@@ -15,7 +15,7 @@ import {
 import optimizeGLB from "./optimizeGLB.js";
 import gcsBucket from "./gcsBucket.js";
 import screenshotGLB from "./screenshotGLB.js";
-import generateMP4Thumbnail from "./generateMP4Thumbnail.js";
+import downloadAndProcessMP4 from "./downloadAndProcessMP4.js";
 import {
   GCS_URL,
   REGULAR_WIDTH,
@@ -99,7 +99,7 @@ async function processGLB(originalFile, metadata) {
   await createGLBIIIFDerivatives(originalFile, metadata);
 
   console.log("add to web3.storage");
-  const cid = await addToWeb3Storage(originalFile);
+  const cid = await addToWeb3Storage(optimizedFile);
 
   console.log(`--- finished processing glb ${originalFile.name} ---`);
 
@@ -110,7 +110,11 @@ async function processGLB(originalFile, metadata) {
 async function processMP4(originalFile, metadata) {
   console.log(`--- started processing mp4 ${originalFile.name} ---`);
 
-  await generateMP4Thumbnail(originalFile);
+  // generates thumbnail and retrieves duration
+  const { duration } = await downloadAndProcessMP4(originalFile);
+
+  // set the duration on metadata (this will be updated in the db when processing completes)
+  metadata.duration = duration;
 
   // generate IIIF manifest
   await createMP4IIIFDerivatives(originalFile, metadata);
@@ -120,7 +124,7 @@ async function processMP4(originalFile, metadata) {
 
   console.log(`--- finished processing mp4 ${originalFile.name} ---`);
 
-  return { cid };
+  return { cid, duration };
 }
 
 // when a file is created in firestore,

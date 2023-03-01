@@ -13,7 +13,18 @@ export function getIIIFManifestJson(path, metadata) {
   const annotationId = `${manifestId}/canvas/0/annotation/0`;
   const { type, title, license } = metadata;
 
-  let body, thumbnail;
+  let canvas, label, body, thumbnail;
+
+  label = {
+    "@none": [title],
+  };
+
+  thumbnail = [
+    {
+      id: `${path}/thumb.jpg`,
+      type: "Image",
+    },
+  ];
 
   switch (type) {
     case "image/png":
@@ -24,9 +35,7 @@ export function getIIIFManifestJson(path, metadata) {
         id: `${path}/full.jpg`,
         type: "Image",
         format: "image/jpeg",
-        label: {
-          "@none": [title],
-        },
+        label,
         service: [
           {
             id,
@@ -35,14 +44,6 @@ export function getIIIFManifestJson(path, metadata) {
           },
         ],
       };
-
-      thumbnail = [
-        {
-          id: `${path}/thumb.jpg`,
-          type: "Image",
-        },
-      ];
-
       break;
     }
     case "model/gltf-binary": {
@@ -50,26 +51,57 @@ export function getIIIFManifestJson(path, metadata) {
         id: `${path}/optimized.glb`,
         type: "Model",
         format: "model/gltf-binary",
-        label: {
-          "@none": [title],
-        },
+        label,
       };
-
-      thumbnail = [
-        {
-          id: `${path}/thumb.jpg`,
-          type: "Image",
-        },
-      ];
 
       break;
     }
     case "audio/mpeg": {
+      body = {
+        id: `${path}/original.mp4`,
+        type: "Audio",
+        format: "audio/mp3",
+        label,
+      };
+
       break;
     }
     case "video/mp4": {
+      body = {
+        id: `${path}/original.mp4`,
+        type: "Video",
+        format: "video/mp4",
+        label,
+      };
+
       break;
     }
+  }
+
+  canvas = {
+    id: canvasId,
+    type: "Canvas",
+    items: [
+      {
+        id: annotationPageId,
+        type: "AnnotationPage",
+        items: [
+          {
+            id: annotationId,
+            type: "Annotation",
+            motivation: "painting",
+            body,
+            target: canvasId,
+          },
+        ],
+      },
+    ],
+    label,
+    thumbnail,
+  };
+
+  if (metadata.duration !== undefined) {
+    canvas.duration = metadata.duration;
   }
 
   const manifest = {
@@ -79,34 +111,8 @@ export function getIIIFManifestJson(path, metadata) {
     ],
     id: manifestId,
     type: "Manifest",
-    items: [
-      {
-        id: canvasId,
-        type: "Canvas",
-        items: [
-          {
-            id: annotationPageId,
-            type: "AnnotationPage",
-            items: [
-              {
-                id: annotationId,
-                type: "Annotation",
-                motivation: "painting",
-                body,
-                target: canvasId,
-              },
-            ],
-          },
-        ],
-        label: {
-          "@none": [title],
-        },
-        thumbnail,
-      },
-    ],
-    label: {
-      "@none": [title],
-    },
+    items: [canvas],
+    label,
   };
 
   // metadata
