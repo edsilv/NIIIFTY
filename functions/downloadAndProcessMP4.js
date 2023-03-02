@@ -61,6 +61,84 @@ async function getDuration(downloadedTempMP4FilePath) {
   }
 }
 
+async function generateStreamingFormats(
+  downloadedTempMP4FilePath,
+  targetDirectory
+) {
+  const uniqueId = path.basename(downloadedTempMP4FilePath, ".mp4");
+
+  // Define output folder
+  const tempOutputFolder = path.dirname(downloadedTempMP4FilePath);
+
+  // Define output file names
+  const targetTempDashFileName = `${uniqueId}.mpd`;
+  const targetTempHLSFileName = `${uniqueId}.m3u8`;
+
+  // Define output file paths
+  const targetTempDashFilePath = path.join(
+    tempOutputFolder,
+    targetTempDashFileName
+  );
+  const targetTempHLSFilePath = path.join(
+    tempOutputFolder,
+    targetTempHLSFileName
+  );
+
+  // Define upload file paths
+  const targetStorageDashFilePath = path.join(targetDirectory, "optimized.mpd");
+  const targetStorageHLSFilePath = path.join(targetDirectory, "optimized.m3u8");
+
+  const dashCommand = ffmpeg(downloadedTempMP4FilePath)
+    .videoCodec("libx264")
+    .audioCodec("aac")
+    .audioBitrate("64k")
+    .videoBitrate("550k")
+    .addOption("-max_muxing_queue_size", "1024")
+    .addOption("-preset", "veryfast")
+    .addOption("-profile:v", "main")
+    .format("dash")
+    .output(targetTempDashFilePath);
+
+  await promisifyCommand(dashCommand);
+  console.log("dash created at", targetTempDashFilePath);
+
+  // Upload the dash.
+  // await gcsBucket.upload(targetTempDashFilePath, {
+  //   destination: targetStorageDashFilePath,
+  // });
+
+  // console.log("Dash uploaded to", targetStorageDashFilePath);
+
+  const hlsCommand = ffmpeg(downloadedTempMP4FilePath)
+    .videoCodec("libx264")
+    .audioCodec("aac")
+    .audioBitrate("64k")
+    .videoBitrate("550k")
+    .addOption("-max_muxing_queue_size", "1024")
+    .addOption("-preset", "veryfast")
+    .addOption("-profile:v", "main")
+    .format("hls")
+    .output(targetTempHLSFilePath);
+
+  await promisifyCommand(hlsCommand);
+  console.log("hls created at", targetTempHLSFilePath);
+
+  // Upload the HLS.
+  // await gcsBucket.upload(targetTempHLSFilePath, {
+  //   destination: targetStorageHLSFilePath,
+  // });
+
+  // console.log("HLS uploaded to", targetStorageHLSFilePath);
+
+  fs.readdir(tempOutputFolder, (err, files) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.log("Files", files);
+    }
+  });
+}
+
 export default async function downloadAndProcessMP4(mp4) {
   const uniqueId = Date.now();
   const downloadedTempMP4FilePath = path.join(os.tmpdir(), `${uniqueId}.mp4`);
@@ -73,6 +151,12 @@ export default async function downloadAndProcessMP4(mp4) {
 
   const duration = await getDuration(downloadedTempMP4FilePath);
   console.log("mp4 duration", duration);
+
+  await generateStreamingFormats(
+    downloadedTempMP4FilePath,
+    path.dirname(mp4.name)
+  );
+  console.log("mp4 streaming formats generated");
 
   // Once the video has been processed, delete the temp files to free up disk space.
   fs.unlinkSync(downloadedTempMP4FilePath);
