@@ -15,55 +15,67 @@ function promisifyCommand(command) {
   });
 }
 
-export default async function downloadAndProcessMP4(mp4) {
-  const uniqueId = Date.now();
-  const tempFilePath = path.join(os.tmpdir(), `${uniqueId}.mp4`);
-  const targetTempFileName = `${uniqueId}.jpg`;
-  const targetTempFilePath = path.join(os.tmpdir(), targetTempFileName);
-  const targetStorageFilePath = path.join(path.dirname(mp4.name), "thumb.jpg");
+async function generateThumbnail(downloadedTempMP4FilePath, targetDirectory) {
+  const uniqueId = path.basename(downloadedTempMP4FilePath, ".mp4");
+  const tempThumbFileName = `${uniqueId}.jpg`;
+  const targetTempThumbFilePath = path.join(os.tmpdir(), tempThumbFileName);
+  const targetStorageThumbFilePath = path.join(targetDirectory, "thumb.jpg");
 
-  await mp4.download({ destination: tempFilePath });
-
-  console.log("video downloaded locally to", tempFilePath);
-
-  const command = ffmpeg(tempFilePath)
+  const command = ffmpeg(downloadedTempMP4FilePath)
     .setFfmpegPath(ffmpeg_static)
     .seekInput("00:00:01") // seek to 1 second into the video
     .frames(1) // extract only one frame
     // .outputOptions("-vf", "scale=320:-1") // resize the frame to a width of 320 pixels
-    .output(targetTempFilePath);
+    .output(targetTempThumbFilePath);
 
   await promisifyCommand(command);
 
-  console.log("thumbnail created at", targetTempFilePath);
+  console.log("thumbnail created at", targetTempThumbFilePath);
 
   // Upload the thumbnail.
-  await gcsBucket.upload(targetTempFilePath, {
-    destination: targetStorageFilePath,
+  await gcsBucket.upload(targetTempThumbFilePath, {
+    destination: targetStorageThumbFilePath,
   });
 
-  console.log("thumbnail uploaded to", targetStorageFilePath);
-
-  let duration;
-
-  const info = await ffprobe(tempFilePath, { path: ffprobeStatic.path });
-
-  if (info && info.streams && info.streams.length) {
-    duration = Number(info.streams[0].duration);
-    console.log("mp4 duration", duration);
-  } else {
-    console.log("couldn't retrieve video duration");
-  }
-
-  // Once the thumbnail has been uploaded delete the local files to free up disk space.
-  fs.unlinkSync(tempFilePath);
-  fs.unlinkSync(targetTempFilePath);
+  console.log("thumbnail uploaded to", targetStorageThumbFilePath);
 
   // resize image
-  const thumbnailFile = gcsBucket.file(targetStorageFilePath);
+  const thumbnailFile = gcsBucket.file(targetStorageThumbFilePath);
   await resizeImage(thumbnailFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
 
   console.log("thumbnail resized");
+
+  // Once the thumbnail has been uploaded delete the local file to free up disk space.
+  fs.unlinkSync(targetTempThumbFilePath);
+}
+
+async function getDuration(downloadedTempMP4FilePath) {
+  const info = await ffprobe(downloadedTempMP4FilePath, {
+    path: ffprobeStatic.path,
+  });
+
+  if (info && info.streams && info.streams.length) {
+    return Number(info.streams[0].duration);
+  } else {
+    throw new Error("couldn't retrieve video duration");
+  }
+}
+
+export default async function downloadAndProcessMP4(mp4) {
+  const uniqueId = Date.now();
+  const downloadedTempMP4FilePath = path.join(os.tmpdir(), `${uniqueId}.mp4`);
+
+  await mp4.download({ destination: downloadedTempMP4FilePath });
+  console.log("video downloaded locally to", downloadedTempMP4FilePath);
+
+  await generateThumbnail(downloadedTempMP4FilePath, path.dirname(mp4.name));
+  console.log("mp4 thumbnail generated");
+
+  const duration = await getDuration(downloadedTempMP4FilePath);
+  console.log("mp4 duration", duration);
+
+  // Once the video has been processed, delete the temp files to free up disk space.
+  fs.unlinkSync(downloadedTempMP4FilePath);
 
   return { duration };
 }
