@@ -1,44 +1,48 @@
 import ffmpeg from "fluent-ffmpeg";
 import ffmpeg_static from "ffmpeg-static";
-import gcsBucket from "./gcsBucket.js";
 import path from "path";
-import fs from "fs";
 import ffprobe from "ffprobe";
 import ffprobeStatic from "ffprobe-static";
 import generateThumbnails from "./thumbnails.js";
-import { uploadFilesToGCS, createTempDir, deleteDir } from "./fs.js";
+import { createTempDir, deleteDir, deleteFile, createDir } from "./fs.js";
 import { createMP4IIIFDerivatives } from "./iiif.js";
+import { uploadFilesToWeb3Storage } from "./web3Storage.js";
+import { uploadFilesToGCS } from "./gcs.js";
 
 export default async function processMP4(mp4, metadata) {
   console.log(`--- started processing mp4 ${mp4.name} ---`);
 
-  const dir = createTempDir();
+  const tempDir = createTempDir();
+  const gcsDir = path.dirname(mp4.name);
 
-  const downloadedTempMP4FilePath = path.join(dir, "optimized.mp4");
+  const mp4FilePath = path.join(tempDir, "optimized.mp4");
 
-  await mp4.download({ destination: downloadedTempMP4FilePath });
-  console.log("mp4 downloaded to", downloadedTempMP4FilePath);
+  await mp4.download({ destination: mp4FilePath });
+  console.log("mp4 downloaded to", mp4FilePath);
 
-  await generateThumbs(downloadedTempMP4FilePath, path.dirname(mp4.name));
+  await generateThumbs(mp4FilePath);
   console.log("mp4 thumbnails generated");
 
-  const duration = await getDuration(downloadedTempMP4FilePath);
+  const duration = await getDuration(mp4FilePath);
   console.log("mp4 duration", duration);
 
-  await generateStreamingFormats(
-    downloadedTempMP4FilePath,
-    path.dirname(mp4.name)
-  );
+  await generateStreamingFormats(mp4FilePath);
   console.log("mp4 streaming formats generated");
 
   // set the duration on metadata (this will be updated in the db when processing completes)
   metadata.duration = duration;
 
   // generate IIIF manifest
-  await createMP4IIIFDerivatives(mp4, metadata);
+  await createMP4IIIFDerivatives(mp4, metadata, tempDir);
 
-  // Once the video has been processed, delete the temp directory to free up disk space.
-  deleteDir(dir);
+  // upload the generated files to GCS
+  await uploadFilesToGCS(tempDir, gcsDir);
+
+  // upload the generated files to web3.storage
+  await uploadFilesToWeb3Storage(tempDir);
+
+  // Once the video has been processed, delete the temp directory.
+  deleteDir(tempDir);
 
   console.log(`--- finished processing mp4 ${mp4.name} ---`);
 
@@ -51,42 +55,45 @@ function promisifyCommand(command) {
   });
 }
 
-async function generateThumbs(downloadedTempMP4FilePath, targetDirectory) {
-  const targetTempFrameFilePath = path.join(
-    path.dirname(downloadedTempMP4FilePath),
-    "frame.jpg"
-  );
-  const targetStorageFrameFilePath = path.join(targetDirectory, "frame.jpg");
+async function generateThumbs(mp4) {
+  const frameFilePath = path.join(path.dirname(mp4), "frame.jpg");
 
-  const command = ffmpeg(downloadedTempMP4FilePath)
+  // const targetStorageFrameFilePath = path.join(targetDirectory, "frame.jpg");
+
+  const command = ffmpeg(mp4)
     .setFfmpegPath(ffmpeg_static)
     .seekInput("00:00:01") // seek to 1 second into the video
     .frames(1) // extract only one frame
     // .outputOptions("-vf", "scale=320:-1") // resize the frame to a width of 320 pixels
-    .output(targetTempFrameFilePath);
+    .output(frameFilePath);
 
   await promisifyCommand(command);
 
-  console.log("frame created at", targetTempFrameFilePath);
+  console.log("frame created at", frameFilePath);
+
+  await generateThumbnails(frameFilePath);
+
+  // delete the temp frame file.
+  deleteFile(frameFilePath);
 
   // Upload the frame.
-  await gcsBucket.upload(targetTempFrameFilePath, {
-    destination: targetStorageFrameFilePath,
-  });
+  // await gcsBucket.upload(targetTempFrameFilePath, {
+  //   destination: targetStorageFrameFilePath,
+  // });
 
-  console.log("frame uploaded to", targetStorageFrameFilePath);
+  // console.log("frame uploaded to", targetStorageFrameFilePath);
 
-  // resize image
-  const frameFile = gcsBucket.file(targetStorageFrameFilePath);
-  await generateThumbnails(frameFile);
+  // // resize image
+  // const frameFile = gcsBucket.file(targetStorageFrameFilePath);
+  // await generateThumbnails(frameFile);
 
-  // Once the thumbnails have been uploaded delete the temp files to free up disk space.
-  fs.unlinkSync(targetTempFrameFilePath);
-  frameFile.delete();
+  // // Once the thumbnails have been uploaded delete the temp files to free up disk space.
+  // fs.unlinkSync(targetTempFrameFilePath);
+  // frameFile.delete();
 }
 
-async function getDuration(downloadedTempMP4FilePath) {
-  const info = await ffprobe(downloadedTempMP4FilePath, {
+async function getDuration(mp4) {
+  const info = await ffprobe(mp4, {
     path: ffprobeStatic.path,
   });
 
@@ -97,25 +104,21 @@ async function getDuration(downloadedTempMP4FilePath) {
   }
 }
 
-async function generateStreamingFormats(
-  downloadedTempMP4FilePath,
-  targetDirectory
-) {
-  // Define output folder
-  const tempOutputFolder = path.dirname(downloadedTempMP4FilePath);
+async function generateStreamingFormats(mp4) {
+  const dir = path.dirname(mp4);
 
   // Define output file paths
-  const dashDir = path.join(tempOutputFolder, "dash");
-  fs.mkdirSync(dashDir);
+  const dashDir = path.join(dir, "dash");
+  createDir(dashDir);
 
-  const hlsDir = path.join(tempOutputFolder, "hls");
-  fs.mkdirSync(hlsDir);
+  const hlsDir = path.join(dir, "hls");
+  createDir(hlsDir);
 
   // Define output file paths
-  const targetTempDashFilePath = path.join(dashDir, "optimized.mpd");
-  const targetTempHLSFilePath = path.join(hlsDir, "optimized.m3u8");
+  const dashFilePath = path.join(dashDir, "optimized.mpd");
+  const hlsFilePath = path.join(hlsDir, "optimized.m3u8");
 
-  const dashCommand = ffmpeg(downloadedTempMP4FilePath)
+  const dashCommand = ffmpeg(mp4)
     .videoCodec("libx264")
     .audioCodec("aac")
     .audioBitrate("64k")
@@ -124,12 +127,12 @@ async function generateStreamingFormats(
     .addOption("-preset", "veryfast")
     .addOption("-profile:v", "main")
     .format("dash")
-    .output(targetTempDashFilePath);
+    .output(dashFilePath);
 
   await promisifyCommand(dashCommand);
-  console.log("dash created at", targetTempDashFilePath);
+  console.log("dash created at", dashFilePath);
 
-  const hlsCommand = ffmpeg(downloadedTempMP4FilePath)
+  const hlsCommand = ffmpeg(mp4)
     .videoCodec("libx264")
     .audioCodec("aac")
     .audioBitrate("64k")
@@ -138,10 +141,8 @@ async function generateStreamingFormats(
     .addOption("-preset", "veryfast")
     .addOption("-profile:v", "main")
     .format("hls")
-    .output(targetTempHLSFilePath);
+    .output(hlsFilePath);
 
   await promisifyCommand(hlsCommand);
-  console.log("hls created at", targetTempHLSFilePath);
-
-  await uploadFilesToGCS(tempOutputFolder, targetDirectory);
+  console.log("hls created at", hlsFilePath);
 }

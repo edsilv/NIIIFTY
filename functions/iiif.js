@@ -1,8 +1,10 @@
 import sharp from "sharp";
 import unzip from "unzip-stream";
 import path from "path";
-import gcsBucket from "./gcsBucket.js";
+import { gcsBucket } from "./gcs.js";
 import { GCS_URL } from "./constants.js";
+import fs from "fs";
+import { createDir } from "./fs.js";
 
 // returns iiif manifest json for a given file
 export function getIIIFManifestJson(path, metadata) {
@@ -146,28 +148,23 @@ export function getIIIFManifestJson(path, metadata) {
   return manifest;
 }
 
-export async function createIIIFManifest(file, metadata) {
+export async function createIIIFManifest(file, metadata, dir) {
   console.log(`creating IIIF manifest for ${file.name}`);
 
-  const dirname = path.dirname(file.name);
-  const id = `${GCS_URL}/${dirname}`;
+  const id = `${GCS_URL}/${path.dirname(file.name)}`;
 
   console.log(`creating iiif manifest with id "${id}"`);
 
   const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
-  const iiifManifestFilePath = path.join(
-    path.dirname(file.name),
-    "iiif/index.json"
-  );
-  const iiifManifestFile = gcsBucket.file(iiifManifestFilePath);
 
-  // write iiif manifest to bucket
-  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
-    metadata: {
-      contentType: "application/json",
-      cacheControl: "public, max-age=60", // cache for 1 minute
-    },
-  });
+  const iiifDir = path.join(dir, "iiif");
+  createDir(iiifDir);
+
+  const jsonPath = path.join(iiifDir, "index.json");
+
+  console.log(`writing iiif manifest to ${jsonPath}`);
+
+  fs.writeFileSync(jsonPath, JSON.stringify(iiifManifestJSON, null, 2));
 
   return id;
 }
@@ -250,6 +247,6 @@ export async function createGLBIIIFDerivatives(glb, metadata) {
 }
 
 // creates iiif manifest for a given mp4
-export async function createMP4IIIFDerivatives(mp4, metadata) {
-  await createIIIFManifest(mp4, metadata);
+export async function createMP4IIIFDerivatives(mp4, metadata, dir) {
+  await createIIIFManifest(mp4, metadata, dir);
 }

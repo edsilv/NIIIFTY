@@ -6,9 +6,9 @@ import functions from "firebase-functions";
 import path from "path";
 // import addFilesToWeb3Storage from "./web3Storage.js";
 import { getIIIFManifestJson } from "./iiif.js";
-import gcsBucket from "./gcsBucket.js";
-import processImage from "./image.js";
-import processGLB from "./glb.js";
+import { gcsBucket } from "./gcs.js";
+// import processImage from "./image.js";
+// import processGLB from "./glb.js";
 import processMP4 from "./mp4.js";
 import { GCS_URL } from "./constants.js";
 
@@ -59,7 +59,7 @@ export const fileCreated = functions
         case "image/tif":
         case "image/tiff": {
           // process image
-          processedProps = await processImage(originalFile, metadata);
+          // processedProps = await processImage(originalFile, metadata);
           break;
         }
         case "audio/mpeg": {
@@ -73,7 +73,7 @@ export const fileCreated = functions
         }
         case "model/gltf-binary": {
           // process glb
-          processedProps = await processGLB(originalFile, metadata);
+          // processedProps = await processGLB(originalFile, metadata);
           break;
         }
       }
