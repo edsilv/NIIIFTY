@@ -16,12 +16,8 @@ import optimizeGLB from "./optimizeGLB.js";
 import gcsBucket from "./gcsBucket.js";
 import screenshotGLB from "./screenshotGLB.js";
 import downloadAndProcessMP4 from "./downloadAndProcessMP4.js";
-import {
-  GCS_URL,
-  REGULAR_WIDTH,
-  SMALL_WIDTH,
-  THUMB_WIDTH,
-} from "./constants.js";
+import generateThumbnails from "./generateThumbnails.js";
+import { GCS_URL } from "./constants.js";
 
 async function updateDerivatives(fileId, metadata) {
   console.log(`updating derivatives for ${fileId}`);
@@ -47,26 +43,10 @@ async function updateDerivatives(fileId, metadata) {
 async function processImage(originalFile, metadata) {
   console.log(`--- started processing image ${originalFile.name} ---`);
 
-  // for image derivatives, use the same image set as unsplash, which makes the following available via their api:
+  // optimised at 80% compression
+  await resizeImage(originalFile, "optimized", null, null);
 
-  // raw (the original image)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3"
-
-  // full (the raw image but optimised at 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80"
-  await resizeImage(originalFile, "full", null, null);
-
-  // regular (width 1080px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=1080"
-  await resizeImage(originalFile, "regular", REGULAR_WIDTH, null);
-
-  // small (width 400px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=400"
-  await resizeImage(originalFile, "small", SMALL_WIDTH, null);
-
-  // thumb (width 200px, 80% compression)
-  // "https://images.unsplash.com/photo-1565651454302-e263192bad3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzODk0NTh8MHwxfHNlYXJjaHwxMHx8b3V0ZG9vcnN8ZW58MHwyfHx8MTY3MTAzMTAzNg&ixlib=rb-4.0.3&q=80&w=200"
-  await resizeImage(originalFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+  await generateThumbnails(originalFile);
 
   // generate IIIF manifest and image tiles
   await createImageIIIFDerivatives(originalFile, metadata);

@@ -1,8 +1,8 @@
 import puppeteer from "puppeteer";
 import gcsBucket from "./gcsBucket.js";
 import path from "path";
-import resizeImage from "./resizeImage.js";
-import { THUMB_WIDTH } from "./constants.js";
+import generateThumbnails from "./generateThumbnails.js";
+import { REGULAR_WIDTH } from "./constants.js";
 
 function toHTMLAttributeString(args) {
   if (!args) return "";
@@ -73,8 +73,8 @@ export default async function screenshotGLB(file) {
   ];
 
   const headless = true;
-  const width = 800;
-  const height = 800;
+  const width = REGULAR_WIDTH;
+  const height = REGULAR_WIDTH;
   const devicePixelRatio = 1;
   const modelViewerUrl =
     "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
@@ -119,7 +119,10 @@ export default async function screenshotGLB(file) {
 
   const screenshot = await element.screenshot(); // returns a buffer
 
-  const screenshotFilePath = path.join(path.dirname(file.name), "thumb.jpg");
+  const screenshotFilePath = path.join(
+    path.dirname(file.name),
+    "screenshot.jpg"
+  );
   const screenshotFile = gcsBucket.file(screenshotFilePath);
 
   await screenshotFile.save(screenshot, {
@@ -128,8 +131,10 @@ export default async function screenshotGLB(file) {
     },
   });
 
-  await resizeImage(screenshotFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+  await generateThumbnails(screenshotFile);
 
-  console.log(`Screenshot saved to ${screenshotFilePath}`);
+  // delete screenshotFile
+  await screenshotFile.delete();
+
   await browser.close();
 }

@@ -1,13 +1,12 @@
 import ffmpeg from "fluent-ffmpeg";
 import ffmpeg_static from "ffmpeg-static";
-import { THUMB_WIDTH } from "./constants.js";
 import gcsBucket from "./gcsBucket.js";
 import path from "path";
 import os from "os";
 import fs from "fs";
-import resizeImage from "./resizeImage.js";
 import ffprobe from "ffprobe";
 import ffprobeStatic from "ffprobe-static";
+import generateThumbnails from "./generateThumbnails.js";
 
 function promisifyCommand(command) {
   return new Promise((resolve, reject) => {
@@ -15,38 +14,38 @@ function promisifyCommand(command) {
   });
 }
 
-async function generateThumbnail(downloadedTempMP4FilePath, targetDirectory) {
-  const uniqueId = path.basename(downloadedTempMP4FilePath, ".mp4");
-  const tempThumbFileName = `${uniqueId}.jpg`;
-  const targetTempThumbFilePath = path.join(os.tmpdir(), tempThumbFileName);
-  const targetStorageThumbFilePath = path.join(targetDirectory, "thumb.jpg");
+async function generateThumbs(downloadedTempMP4FilePath, targetDirectory) {
+  const targetTempFrameFilePath = path.join(
+    path.dirname(downloadedTempMP4FilePath),
+    "frame.jpg"
+  );
+  const targetStorageFrameFilePath = path.join(targetDirectory, "frame.jpg");
 
   const command = ffmpeg(downloadedTempMP4FilePath)
     .setFfmpegPath(ffmpeg_static)
     .seekInput("00:00:01") // seek to 1 second into the video
     .frames(1) // extract only one frame
     // .outputOptions("-vf", "scale=320:-1") // resize the frame to a width of 320 pixels
-    .output(targetTempThumbFilePath);
+    .output(targetTempFrameFilePath);
 
   await promisifyCommand(command);
 
-  console.log("thumbnail created at", targetTempThumbFilePath);
+  console.log("frame created at", targetTempFrameFilePath);
 
-  // Upload the thumbnail.
-  await gcsBucket.upload(targetTempThumbFilePath, {
-    destination: targetStorageThumbFilePath,
+  // Upload the frame.
+  await gcsBucket.upload(targetTempFrameFilePath, {
+    destination: targetStorageFrameFilePath,
   });
 
-  console.log("thumbnail uploaded to", targetStorageThumbFilePath);
+  console.log("frame uploaded to", targetStorageFrameFilePath);
 
   // resize image
-  const thumbnailFile = gcsBucket.file(targetStorageThumbFilePath);
-  await resizeImage(thumbnailFile, "thumb", THUMB_WIDTH, THUMB_WIDTH);
+  const frameFile = gcsBucket.file(targetStorageFrameFilePath);
+  await generateThumbnails(frameFile);
 
-  console.log("thumbnail resized");
-
-  // Once the thumbnail has been uploaded delete the local file to free up disk space.
-  fs.unlinkSync(targetTempThumbFilePath);
+  // Once the thumbnails have been uploaded delete the temp files to free up disk space.
+  fs.unlinkSync(targetTempFrameFilePath);
+  frameFile.delete();
 }
 
 async function getDuration(downloadedTempMP4FilePath) {
@@ -65,35 +64,26 @@ async function generateStreamingFormats(
   downloadedTempMP4FilePath,
   targetDirectory
 ) {
-  const uniqueId = path.basename(downloadedTempMP4FilePath, ".mp4");
-
   // Define output folder
   const tempOutputFolder = path.dirname(downloadedTempMP4FilePath);
 
-  // Define output file names
-  const targetTempDashFileName = `${uniqueId}.mpd`;
-  const targetTempHLSFileName = `${uniqueId}.m3u8`;
+  // Define output file paths
+  const dashDir = path.join(tempOutputFolder, "dash");
+  fs.mkdirSync(dashDir);
+
+  const hlsDir = path.join(tempOutputFolder, "hls");
+  fs.mkdirSync(hlsDir);
 
   // Define output file paths
-  const targetTempDashFilePath = path.join(
-    tempOutputFolder,
-    targetTempDashFileName
-  );
-  const targetTempHLSFilePath = path.join(
-    tempOutputFolder,
-    targetTempHLSFileName
-  );
-
-  // Define upload file paths
-  const targetStorageDashFilePath = path.join(targetDirectory, "optimized.mpd");
-  const targetStorageHLSFilePath = path.join(targetDirectory, "optimized.m3u8");
+  const targetTempDashFilePath = path.join(dashDir, "optimized.mpd");
+  const targetTempHLSFilePath = path.join(hlsDir, "optimized.m3u8");
 
   const dashCommand = ffmpeg(downloadedTempMP4FilePath)
     .videoCodec("libx264")
     .audioCodec("aac")
     .audioBitrate("64k")
     .videoBitrate("550k")
-    .addOption("-max_muxing_queue_size", "1024")
+    // .addOption("-max_muxing_queue_size", "1024")
     .addOption("-preset", "veryfast")
     .addOption("-profile:v", "main")
     .format("dash")
@@ -114,7 +104,7 @@ async function generateStreamingFormats(
     .audioCodec("aac")
     .audioBitrate("64k")
     .videoBitrate("550k")
-    .addOption("-max_muxing_queue_size", "1024")
+    // .addOption("-max_muxing_queue_size", "1024")
     .addOption("-preset", "veryfast")
     .addOption("-profile:v", "main")
     .format("hls")
@@ -130,23 +120,53 @@ async function generateStreamingFormats(
 
   // console.log("HLS uploaded to", targetStorageHLSFilePath);
 
-  fs.readdir(tempOutputFolder, (err, files) => {
-    if (err) {
-      console.error(err);
-    } else {
-      console.log("Files", files);
-    }
-  });
+  // Recursively get a list of all files in the directory
+  const getAllFiles = function (dirPath, arrayOfFiles) {
+    const files = fs.readdirSync(dirPath);
+
+    arrayOfFiles = arrayOfFiles || [];
+
+    files.forEach(function (file) {
+      if (fs.statSync(path.join(dirPath, file)).isDirectory()) {
+        arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
+      } else {
+        arrayOfFiles.push(path.join(dirPath, file));
+      }
+    });
+
+    return arrayOfFiles;
+  };
+
+  const files = getAllFiles(tempOutputFolder);
+
+  // Loop through each file and upload it to the bucket
+  for (const file of files) {
+    const targetStorageFilePath = path.join(
+      targetDirectory,
+      file.replace(`${tempOutputFolder}/`, "")
+    );
+
+    await gcsBucket.upload(file, {
+      destination: targetStorageFilePath,
+      resumable: false,
+    });
+  }
 }
 
 export default async function downloadAndProcessMP4(mp4) {
-  const uniqueId = Date.now();
-  const downloadedTempMP4FilePath = path.join(os.tmpdir(), `${uniqueId}.mp4`);
+  const uniqueId = String(Date.now());
+
+  // Create a temp directory where the storage file will be downloaded.
+  const dir = path.join(os.tmpdir(), uniqueId);
+
+  fs.mkdirSync(dir);
+
+  const downloadedTempMP4FilePath = path.join(dir, "optimized.mp4");
 
   await mp4.download({ destination: downloadedTempMP4FilePath });
   console.log("video downloaded locally to", downloadedTempMP4FilePath);
 
-  await generateThumbnail(downloadedTempMP4FilePath, path.dirname(mp4.name));
+  await generateThumbs(downloadedTempMP4FilePath, path.dirname(mp4.name));
   console.log("mp4 thumbnail generated");
 
   const duration = await getDuration(downloadedTempMP4FilePath);
@@ -158,8 +178,8 @@ export default async function downloadAndProcessMP4(mp4) {
   );
   console.log("mp4 streaming formats generated");
 
-  // Once the video has been processed, delete the temp files to free up disk space.
-  fs.unlinkSync(downloadedTempMP4FilePath);
+  // Once the video has been processed, delete the temp directory to free up disk space.
+  fs.rmSync(path.dirname(downloadedTempMP4FilePath), { recursive: true });
 
   return { duration };
 }

@@ -4,7 +4,7 @@ import Metatags from "@/components/Metatags";
 import { useTranslation } from "react-i18next";
 import { LoadingMessage } from "../LoadingMessage";
 import { remove, useAuthoringFile } from "@/hooks/useFile";
-import { AuthoringFile, LicenseURL } from "@/utils/Types";
+import { AuthoringFile, LicenseURL, MIMETYPES } from "@/utils/Types";
 import { useMounted } from "@/hooks/useMounted";
 import Alert from "../Alert";
 import { getFileUrl } from "@/utils/Utils";
@@ -70,6 +70,7 @@ export function EditFile({ id }: { id: string }) {
   const [attribution, setAttribution] = useState<string>("");
   const [license, setLicense] = useState<LicenseURL>();
   const [cid, setCid] = useState<string>("");
+  const [type, setType] = useState<string>("");
 
   const [_file, { update }] = useAuthoringFile(userAdapter!, id as string, {
     onData: (file) => {
@@ -78,6 +79,7 @@ export function EditFile({ id }: { id: string }) {
       setAttribution(file.attribution || "");
       setLicense(file.license);
       setCid(file.cid);
+      setType(file.type);
     },
     onError: () => {
       setPageError("fileNotFound");
@@ -134,7 +136,141 @@ export function EditFile({ id }: { id: string }) {
       );
     }
 
-    const iiifManifest: string = getFileUrl(`${id}/iiif/index.json`);
+    const Formats = () => {
+      const dash: string = getFileUrl(`${id}/dash/optimized.mpd`);
+      const glb: string = getFileUrl(`${id}/optimized.glb`);
+      const hls: string = getFileUrl(`${id}/hls/optimized.m3u8`);
+      const iiif: string = getFileUrl(`${id}/iiif/index.json`);
+      const jpg: string = getFileUrl(`${id}/optimized.jpg`);
+      const mp4: string = getFileUrl(`${id}/optimized.mp4`);
+
+      return (
+        <>
+          {(type === MIMETYPES.JPG ||
+            type === MIMETYPES.PNG ||
+            type === MIMETYPES.TIF ||
+            type === MIMETYPES.TIFF) && (
+            <>
+              {/* jpg */}
+              <label
+                htmlFor="jpg"
+                className="mt-8 font-light text-gray-600 dark:text-white"
+              >
+                <>{t("JPG")}</>
+              </label>
+
+              <div>
+                <CopyText id="jpg" text={jpg} />
+              </div>
+
+              <a href={jpg} target="_blank">
+                {t("view")}
+              </a>
+            </>
+          )}
+          {type === MIMETYPES.GLB && (
+            <>
+              {/* glb */}
+              <label
+                htmlFor="glb"
+                className="mt-8 font-light text-gray-600 dark:text-white"
+              >
+                <>{t("glb")}</>
+              </label>
+
+              <div>
+                <CopyText id="glb" text={glb} />
+              </div>
+
+              <a
+                href={`https://view-gltf.glitch.me?gltf=${glb}`}
+                target="_blank"
+              >
+                {t("view")}
+              </a>
+            </>
+          )}
+          {type === MIMETYPES.MP4 && (
+            <>
+              {/* mp4 */}
+              <label
+                htmlFor="mp4"
+                className="mt-8 font-light text-gray-600 dark:text-white"
+              >
+                <>{t("mp4")}</>
+              </label>
+
+              <div>
+                <CopyText id="mp4" text={mp4} />
+              </div>
+
+              <a href={`${mp4}`} target="_blank">
+                {t("view")}
+              </a>
+
+              {/* dash */}
+              <label
+                htmlFor="dash"
+                className="mt-8 font-light text-gray-600 dark:text-white"
+              >
+                <>{t("dash")}</>
+              </label>
+
+              <div>
+                <CopyText id="dash" text={dash} />
+              </div>
+
+              <a
+                href={`https://reference.dashif.org/dash.js/nightly/samples/dash-if-reference-player/index.html?mpd=${encodeURIComponent(
+                  dash
+                )}+&debug.logLevel=4&streaming.delay.liveDelayFragmentCount=NaN&streaming.delay.liveDelay=NaN&streaming.buffer.initialBufferLevel=NaN&streaming.liveCatchup.maxDrift=NaN&streaming.liveCatchup.playbackRate.min=NaN&streaming.liveCatchup.playbackRate.max=NaN`}
+                target="_blank"
+              >
+                {t("view")}
+              </a>
+
+              {/* hls */}
+              <label
+                htmlFor="hls"
+                className="mt-8 font-light text-gray-600 dark:text-white"
+              >
+                <>{t("hls")}</>
+              </label>
+
+              <div>
+                <CopyText id="hls" text={hls} />
+              </div>
+
+              <a
+                href={`https://www.hlsplayer.net/#type=m3u8&src=${hls}`}
+                target="_blank"
+              >
+                {t("view")}
+              </a>
+            </>
+          )}
+
+          {/* iiif */}
+          <label
+            htmlFor="iiif"
+            className="mt-8 font-light text-gray-600 dark:text-white"
+          >
+            <>{t("iiif")}</>
+          </label>
+
+          <div>
+            <CopyText id="iiif" text={iiif} />
+            <a
+              href={`https://www.universalviewer.dev/#?iiifManifestId=${iiif}`}
+              target="_blank"
+              title={t("viewOnUVLink")}
+            >
+              {t("view")}
+            </a>
+          </div>
+        </>
+      );
+    };
 
     return (
       <>
@@ -147,6 +283,13 @@ export function EditFile({ id }: { id: string }) {
           <div className="w-64">
             <a href={getFileUrl(`${id}/thumb.jpg`)} target="_blank">
               <img src={getFileUrl(`${id}/thumb.jpg`)} alt={title} />
+            </a>
+            <a href={getFileUrl(`${id}/regular.jpg`)} target="_blank">
+              {t("regular")}
+            </a>
+            <br />
+            <a href={getFileUrl(`${id}/small.jpg`)} target="_blank">
+              {t("small")}
             </a>
           </div>
           {/* title */}
@@ -213,24 +356,12 @@ export function EditFile({ id }: { id: string }) {
             })}
           </select>
 
-          {/* iiif manifest */}
-          <label
-            htmlFor="iiifManifest"
-            className="mt-8 font-light text-gray-600 dark:text-white"
-          >
-            <>{t("iiifManifest")}</>
-          </label>
-
-          <div>
-            <CopyText id="iiifManifest" text={iiifManifest} />
-          </div>
-
-          {/* cid */}
+          {/* ipfs */}
           <label
             htmlFor="cid"
             className="mt-8 font-light text-gray-600 dark:text-white"
           >
-            <>{t("cid")}</>
+            <>{t("ipfs")}</>
           </label>
 
           <div>
@@ -240,22 +371,11 @@ export function EditFile({ id }: { id: string }) {
               target="_blank"
               title={t("viewOnW3SLink")}
             >
-              <svg
-                className="w-6 pt-2 dark:fill-white"
-                viewBox="0 0 27.2 27.18"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M13.6 27.18A13.59 13.59 0 1127.2 13.6a13.61 13.61 0 01-13.6 13.58zM13.6 2a11.59 11.59 0 1011.6 11.6A11.62 11.62 0 0013.6 2z"
-                  fill="current"
-                ></path>
-                <path
-                  d="M12.82 9.9v2.53h1.6V9.9l2.09 1.21.77-1.21-2.16-1.32 2.16-1.32-.77-1.21-2.09 1.21V4.73h-1.6v2.53l-2-1.21L10 7.26l2.2 1.32L10 9.9l.78 1.21zM18 17.79v2.52h1.56v-2.52L21.63 19l.78-1.2-2.16-1.33 2.16-1.28-.78-1.19-2.08 1.2v-2.58H18v2.56L15.9 14l-.77 1.2 2.16 1.32-2.16 1.33.77 1.15zM8.13 17.79v2.52h1.56v-2.52L11.82 19l.77-1.2-2.16-1.33 2.12-1.28-.73-1.24-2.13 1.23v-2.56H8.13v2.56L6.05 14l-.78 1.2 2.16 1.3-2.16 1.33.78 1.17z"
-                  fill="current"
-                ></path>
-              </svg>
+              {t("view")}
             </a>
           </div>
+
+          <Formats />
 
           <div className="flex flex-row items-center justify-start">
             <button
