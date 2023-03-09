@@ -2,23 +2,17 @@ import ffmpeg from "fluent-ffmpeg";
 import ffmpeg_static from "ffmpeg-static";
 import gcsBucket from "./gcsBucket.js";
 import path from "path";
-import os from "os";
 import fs from "fs";
 import ffprobe from "ffprobe";
 import ffprobeStatic from "ffprobe-static";
 import generateThumbnails from "./thumbnails.js";
-import { uploadFilesToGCS } from "./fs.js";
+import { uploadFilesToGCS, createTempDir, deleteDir } from "./fs.js";
 import { createMP4IIIFDerivatives } from "./iiif.js";
 
 export default async function processMP4(mp4, metadata) {
   console.log(`--- started processing mp4 ${mp4.name} ---`);
 
-  const uniqueId = String(Date.now());
-
-  // Create a temp directory where the storage file will be downloaded.
-  const dir = path.join(os.tmpdir(), uniqueId);
-
-  fs.mkdirSync(dir);
+  const dir = createTempDir();
 
   const downloadedTempMP4FilePath = path.join(dir, "optimized.mp4");
 
@@ -44,7 +38,7 @@ export default async function processMP4(mp4, metadata) {
   await createMP4IIIFDerivatives(mp4, metadata);
 
   // Once the video has been processed, delete the temp directory to free up disk space.
-  fs.rmSync(path.dirname(downloadedTempMP4FilePath), { recursive: true });
+  deleteDir(dir);
 
   console.log(`--- finished processing mp4 ${mp4.name} ---`);
 

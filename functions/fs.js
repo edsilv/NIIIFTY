@@ -1,3 +1,4 @@
+import os from "os";
 import fs from "fs";
 import path from "path";
 import gcsBucket from "./gcsBucket.js";
@@ -38,4 +39,19 @@ export async function uploadFilesToGCS(fsPath, gcsPath) {
       resumable: false, // todo: can this be removed?
     });
   }
+}
+
+export function createTempDir() {
+  const uniqueId = String(Date.now());
+
+  // Create a temp directory where the storage file will be downloaded.
+  const dir = path.join(os.tmpdir(), uniqueId);
+
+  fs.mkdirSync(dir);
+
+  return dir;
+}
+
+export function deleteDir(dir) {
+  fs.rmSync(dir, { recursive: true });
 }
