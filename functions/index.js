@@ -4,19 +4,12 @@
 // https://firebase.google.com/docs/functions/beta/get-started
 import functions from "firebase-functions";
 import path from "path";
-import addToWeb3Storage from "./addToWeb3Storage.js";
-import resizeImage from "./resizeImage.js";
-import {
-  createImageIIIFDerivatives,
-  getIIIFManifestJson,
-  createGLBIIIFDerivatives,
-  createMP4IIIFDerivatives,
-} from "./iiif.js";
-import optimizeGLB from "./optimizeGLB.js";
+// import addFilesToWeb3Storage from "./web3Storage.js";
+import { getIIIFManifestJson } from "./iiif.js";
 import gcsBucket from "./gcsBucket.js";
-import screenshotGLB from "./screenshotGLB.js";
-import downloadAndProcessMP4 from "./downloadAndProcessMP4.js";
-import generateThumbnails from "./generateThumbnails.js";
+import processImage from "./image.js";
+import processGLB from "./glb.js";
+import processMP4 from "./mp4.js";
 import { GCS_URL } from "./constants.js";
 
 async function updateDerivatives(fileId, metadata) {
@@ -37,74 +30,6 @@ async function updateDerivatives(fileId, metadata) {
   });
 
   console.log(`finished updating derivatives for ${fileId}`);
-}
-
-// when an image is uploaded, create derivatives and add to web3 storage
-async function processImage(originalFile, metadata) {
-  console.log(`--- started processing image ${originalFile.name} ---`);
-
-  // optimised at 80% compression
-  await resizeImage(originalFile, "optimized", null, null);
-
-  await generateThumbnails(originalFile);
-
-  // generate IIIF manifest and image tiles
-  await createImageIIIFDerivatives(originalFile, metadata);
-
-  // add the original file to web3.storage
-  // todo: add the derivatives to web3.storage
-  console.log("add to web3.storage");
-  const cid = await addToWeb3Storage(originalFile);
-
-  console.log(`--- finished processing image ${originalFile.name} ---`);
-
-  return { cid };
-}
-
-// when a glb is uploaded, create derivatives and add to web3 storage
-async function processGLB(originalFile, metadata) {
-  console.log(`--- started processing glb ${originalFile.name} ---`);
-
-  // set the correct mime type on the original file as this is not passed on upload
-  await originalFile.setMetadata({
-    contentType: "model/gltf-binary",
-  });
-
-  // optimise glb using gltf-transform
-  const optimizedFile = await optimizeGLB(originalFile);
-
-  await screenshotGLB(optimizedFile);
-
-  // generate IIIF manifest
-  await createGLBIIIFDerivatives(originalFile, metadata);
-
-  console.log("add to web3.storage");
-  const cid = await addToWeb3Storage(optimizedFile);
-
-  console.log(`--- finished processing glb ${originalFile.name} ---`);
-
-  return { cid };
-}
-
-// when an mp4 is uploaded, create derivatives and add to web3 storage
-async function processMP4(originalFile, metadata) {
-  console.log(`--- started processing mp4 ${originalFile.name} ---`);
-
-  // generates thumbnail and retrieves duration
-  const { duration } = await downloadAndProcessMP4(originalFile);
-
-  // set the duration on metadata (this will be updated in the db when processing completes)
-  metadata.duration = duration;
-
-  // generate IIIF manifest
-  await createMP4IIIFDerivatives(originalFile, metadata);
-
-  // console.log("add to web3.storage");
-  const cid = await addToWeb3Storage(originalFile);
-
-  console.log(`--- finished processing mp4 ${originalFile.name} ---`);
-
-  return { cid, duration };
 }
 
 // when a file is created in firestore,
@@ -134,7 +59,6 @@ export const fileCreated = functions
         case "image/tif":
         case "image/tiff": {
           // process image
-          // todo: add try/catch so that if it fails it's marked in the db
           processedProps = await processImage(originalFile, metadata);
           break;
         }
@@ -149,27 +73,21 @@ export const fileCreated = functions
         }
         case "model/gltf-binary": {
           // process glb
-          // try {
           processedProps = await processGLB(originalFile, metadata);
-          // } catch (error) {
-          //   console.log("error processing glb", error);
-          //   // update firestore record
-          //   return snap.ref.set(
-          //     {
-          //       processingError: true,
-          //     },
-          //     { merge: true }
-          //   );
-          // }
-
           break;
         }
       }
+
+      // add to web3.storage
+      // console.log("adding files to web3.storage", files);
+      // const cid = await addFilesToWeb3Storage(files);
+      // console.log("successfully added files to web3.storage", cid);
 
       // update firestore record
       return snap.ref.set(
         {
           ...processedProps,
+          // cid,
           processed: true,
         },
         { merge: true }
@@ -199,31 +117,7 @@ export const fileUpdated = functions
 
     // the original uploaded file cannot be changed, only the metadata associated with it.
     // update any derivatives (like iiif manifests) that include the metadata
-
-    // todo: is a switch needed? or can we just call updateDerivatives for all types?
-    switch (metadata.type) {
-      case "image/png":
-      case "image/jpeg":
-      case "image/tif":
-      case "image/tiff": {
-        // update image derivatives
-        await updateDerivatives(fileId, metadata);
-        break;
-      }
-      case "audio/mpeg": {
-        // process audio
-        break;
-      }
-      case "video/mp4": {
-        // process video
-        break;
-      }
-      case "model/gltf-binary": {
-        // update glb derivatives
-        await updateDerivatives(fileId, metadata);
-        break;
-      }
-    }
+    await updateDerivatives(fileId, metadata);
   });
 
 // when a file is deleted in firestore

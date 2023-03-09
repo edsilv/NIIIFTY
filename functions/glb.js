@@ -1,8 +1,94 @@
-import puppeteer from "puppeteer";
-import gcsBucket from "./gcsBucket.js";
+import { NodeIO } from "@gltf-transform/core";
+import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
+import {
+  dedup,
+  flatten,
+  join,
+  weld,
+  resample,
+  prune,
+  sparse,
+  // textureCompress,
+  draco,
+} from "@gltf-transform/functions";
+import draco3d from "draco3dgltf";
+import fetch from "node-fetch";
 import path from "path";
-import generateThumbnails from "./generateThumbnails.js";
+import gcsBucket from "./gcsBucket.js";
+import puppeteer from "puppeteer";
+import generateThumbnails from "./thumbnails.js";
 import { REGULAR_WIDTH } from "./constants.js";
+import { createGLBIIIFDerivatives } from "./iiif.js";
+
+export default async function processGLB(glb, metadata) {
+  console.log(`--- started processing glb ${glb.name} ---`);
+
+  // set the correct mime type on the original file as this is not passed on upload
+  await glb.setMetadata({
+    contentType: "model/gltf-binary",
+  });
+
+  // optimise glb using gltf-transform
+  const optimizedFile = await optimizeGLB(glb);
+
+  await screenshotGLB(optimizedFile);
+
+  // generate IIIF manifest
+  await createGLBIIIFDerivatives(glb, metadata);
+
+  console.log(`--- finished processing glb ${glb.name} ---`);
+
+  return {};
+}
+
+async function optimizeGLB(glb) {
+  console.log("optimizing glb", glb.name);
+
+  const io = new NodeIO(fetch)
+    .registerExtensions(KHRONOS_EXTENSIONS)
+    .registerDependencies({
+      "draco3d.decoder": await draco3d.createDecoderModule(), // Optional.
+      "draco3d.encoder": await draco3d.createEncoderModule(), // Optional.
+    })
+    .setAllowHTTP(true);
+
+  const document = await io.read(glb.metadata.mediaLink);
+
+  await document.transform(
+    dedup(),
+    // instance({ min: 5 }),
+    flatten(),
+    join(),
+    weld({ tolerance: 0.0001 }),
+    // simplify({ simplifier: MeshoptSimplifier, ratio: 0.001, error: 0.0001 }),
+    resample(),
+    prune({ keepAttributes: false, keepLeaves: false }),
+    sparse(),
+    // this errors if the model doesn't have any textures
+    // textureCompress({
+    //   encoder: sharp,
+    //   targetFormat: "auto",
+    //   resize: [2048, 2048],
+    // }),
+    draco()
+  );
+
+  const optimizedGLB = await io.writeBinary(document);
+
+  const optimizedGLBFilePath = path.join(
+    path.dirname(glb.name),
+    "optimized.glb"
+  );
+  const optimizedFile = gcsBucket.file(optimizedGLBFilePath);
+
+  await optimizedFile.save(optimizedGLB, {
+    metadata: {
+      contentType: "model/gltf-binary",
+    },
+  });
+
+  return optimizedFile;
+}
 
 function toHTMLAttributeString(args) {
   if (!args) return "";
@@ -59,7 +145,7 @@ function modelViewerHTMLTemplate(
   `;
 }
 
-export default async function screenshotGLB(file) {
+async function screenshotGLB(file) {
   // take screenshot for thumbnail
   const url = file.metadata.mediaLink;
 

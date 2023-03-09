@@ -1,6 +1,7 @@
 import { REGULAR_WIDTH, SMALL_WIDTH, THUMB_WIDTH } from "./constants.js";
 import resizeImage from "./resizeImage.js";
 
+// todo: make an fs version of this
 export default async function generateThumbnails(image) {
   // uses the same image set as unsplash.com
 
