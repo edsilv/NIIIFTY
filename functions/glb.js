@@ -34,7 +34,7 @@
 //   await screenshotGLB(optimizedFile);
 
 //   // generate IIIF manifest
-//   await createGLBIIIFDerivatives(glb, metadata);
+//   await createGLBIIIFDerivatives(glbFilePath, metadata);
 
 //   console.log(`--- finished processing glb ${glb.name} ---`);
 

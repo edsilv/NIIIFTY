@@ -7,12 +7,12 @@ import path from "path";
 // import addFilesToWeb3Storage from "./web3Storage.js";
 import { getIIIFManifestJson } from "./iiif.js";
 import { gcsBucket } from "./gcs.js";
-// import processImage from "./image.js";
+import processImage from "./image.js";
 // import processGLB from "./glb.js";
 import processMP4 from "./mp4.js";
 import { GCS_URL } from "./constants.js";
 
-async function updateDerivatives(fileId, metadata) {
+async function updateMetadataDerivatives(fileId, metadata) {
   console.log(`updating derivatives for ${fileId}`);
 
   // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
@@ -51,7 +51,10 @@ export const fileCreated = functions
     if (files.length) {
       const originalFile = files[0];
 
-      const metadata = snap.data();
+      const metadata = {
+        fileId,
+        ...snap.data(),
+      };
 
       switch (metadata.type) {
         case "image/png":
@@ -59,7 +62,7 @@ export const fileCreated = functions
         case "image/tif":
         case "image/tiff": {
           // process image
-          // processedProps = await processImage(originalFile, metadata);
+          processedProps = await processImage(originalFile, metadata);
           break;
         }
         case "audio/mpeg": {
@@ -77,11 +80,6 @@ export const fileCreated = functions
           break;
         }
       }
-
-      // add to web3.storage
-      // console.log("adding files to web3.storage", files);
-      // const cid = await addFilesToWeb3Storage(files);
-      // console.log("successfully added files to web3.storage", cid);
 
       // update firestore record
       return snap.ref.set(
@@ -116,7 +114,7 @@ export const fileUpdated = functions
 
     // the original uploaded file cannot be changed, only the metadata associated with it.
     // update any derivatives (like iiif manifests) that include the metadata
-    await updateDerivatives(fileId, metadata);
+    await updateMetadataDerivatives(fileId, metadata);
   });
 
 // when a file is deleted in firestore

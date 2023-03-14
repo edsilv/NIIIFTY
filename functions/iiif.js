@@ -1,10 +1,10 @@
 import sharp from "sharp";
-import unzip from "unzip-stream";
+// import unzip from "unzip-stream";
 import path from "path";
-import { gcsBucket } from "./gcs.js";
 import { GCS_URL } from "./constants.js";
 import fs from "fs";
-import { createDir } from "./fs.js";
+import { createDir, deleteFile } from "./fs.js";
+import extract from "extract-zip";
 
 // returns iiif manifest json for a given file
 export function getIIIFManifestJson(path, metadata) {
@@ -148,38 +148,50 @@ export function getIIIFManifestJson(path, metadata) {
   return manifest;
 }
 
-export async function createIIIFManifest(file, metadata, dir) {
-  console.log(`creating IIIF manifest for ${file.name}`);
+export async function createIIIFManifest(dir, metadata) {
+  const { fileId } = metadata;
 
-  const id = `${GCS_URL}/${path.dirname(file.name)}`;
+  console.log(`creating IIIF manifest for ${fileId}`);
+
+  const id = `${GCS_URL}/${fileId}`;
 
   console.log(`creating iiif manifest with id "${id}"`);
 
   const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
 
-  const iiifDir = path.join(dir, "iiif");
-  createDir(iiifDir);
+  const jsonPath = path.join(dir, "index.json");
 
-  const jsonPath = path.join(iiifDir, "index.json");
+  console.log("jsonPath", jsonPath);
 
   console.log(`writing iiif manifest to ${jsonPath}`);
 
   fs.writeFileSync(jsonPath, JSON.stringify(iiifManifestJSON, null, 2));
 
+  console.log(`finished creating IIIF manifest for ${fileId}`);
+
   return id;
 }
 
-// creates iiif manifest, images tiles, and info.json for a given image
-export async function createImageIIIFDerivatives(image, metadata) {
-  const id = await createIIIFManifest(image, metadata);
+function createIIIFDir(filePath) {
+  const tempDir = path.dirname(filePath);
+  const iiifDir = path.join(tempDir, "iiif");
+  createDir(iiifDir);
+  return iiifDir;
+}
+
+export async function createImageIIIFDerivatives(imageFilePath, metadata) {
+  console.log("metadata", metadata);
+
+  const iiifDir = createIIIFDir(imageFilePath);
+  const zipFile = path.join(iiifDir, "iiif.zip");
+
+  const id = await createIIIFManifest(iiifDir, metadata);
 
   // generate iiif image tiles
   console.log(`generating iiif image tiles`);
 
-  const dirname = path.dirname(image.name);
-  const zipPath = path.join(dirname, "iiif.zip");
-  const zipFile = gcsBucket.file(zipPath);
-  const imageTilesWriteStream = zipFile.createWriteStream();
+  const readStream = fs.createReadStream(imageFilePath);
+  const writeStream = fs.createWriteStream(zipFile);
 
   // Create Sharp pipeline for tiling the image
   const pipeline = sharp();
@@ -190,63 +202,35 @@ export async function createImageIIIFDerivatives(image, metadata) {
       basename: "iiif",
       id,
     })
-    .pipe(imageTilesWriteStream);
+    .pipe(writeStream);
 
-  return new Promise((resolve, _reject) => {
-    const promises = [];
+  readStream.pipe(pipeline);
 
-    const unzipParser = unzip.Parse();
+  return new Promise((resolve, reject) =>
+    writeStream
+      .on("finish", async () => {
+        // unzip iiif.zip
+        console.log(`unzipping iiif.zip`);
+        await extract(zipFile, { dir: tempDir });
 
-    unzipParser.on("end", async () => {
-      console.log(
-        `waiting for ${promises.length} iiif.zip entries to finish streaming to ${dirname}/iiif`
-      );
+        // delete iiif.zip
+        console.log(`deleting iiif.zip`);
+        deleteFile(zipFile);
 
-      await Promise.all(promises);
-
-      console.log(`finished extracting iiif.zip, deleting ${zipPath}`);
-
-      await zipFile.delete();
-
-      resolve();
-    });
-
-    gcsBucket
-      .file(image.name)
-      .createReadStream()
-      .pipe(pipeline)
-      .pipe(unzipParser)
-      .on("entry", (entry) => {
-        const entryDestPath = path.join(dirname, entry.path);
-        const entryDestFile = gcsBucket.file(entryDestPath);
-        const p = new Promise((resolve, reject) => {
-          // console.log(`write zip file entry ${entry.path} to ${entryDestPath}`);
-          entry
-            .pipe(entryDestFile.createWriteStream())
-            .on("finish", () => {
-              // console.log(
-              //   `finished streaming ${entry.path} to ${entryDestPath}`
-              // );
-              resolve();
-            })
-            .on("error", (e) => {
-              console.log(
-                `error streaming ${entry.path} to ${entryDestPath}: ${e}`
-              );
-              reject();
-            });
-        });
-        promises.push(p);
-      });
-  });
+        resolve();
+      })
+      .on("error", reject)
+  );
 }
 
 // creates iiif manifest for a given glb
-export async function createGLBIIIFDerivatives(glb, metadata) {
-  await createIIIFManifest(glb, metadata);
+export async function createGLBIIIFDerivatives(glbFilePath, metadata) {
+  const iiifDir = createIIIFDir(glbFilePath);
+  await createIIIFManifest(iiifDir, metadata);
 }
 
 // creates iiif manifest for a given mp4
-export async function createMP4IIIFDerivatives(mp4, metadata, dir) {
-  await createIIIFManifest(mp4, metadata, dir);
+export async function createMP4IIIFDerivatives(mp4FilePath, metadata) {
+  const iiifDir = createIIIFDir(mp4FilePath);
+  await createIIIFManifest(iiifDir, metadata);
 }

@@ -1,20 +1,11 @@
 import path from "path";
 import sharp from "sharp";
 import fs from "fs";
-// import { gcsBucket } from "./gcs.js";
 
-export default async function resizeImage(image, name, width, height) {
-  // const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
-  // const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream({
-  //   metadata: {
-  //     contentType: "image/jpeg",
-  //   },
-  // });
-  // const file = gcsBucket.file(image.name);
-
-  const readStream = fs.createReadStream(image);
+export default async function resizeImage(imageFilePath, name, width, height) {
+  const readStream = fs.createReadStream(imageFilePath);
   const writeStream = fs.createWriteStream(
-    path.join(path.dirname(image), `${name}.jpg`)
+    path.join(path.dirname(imageFilePath), `${name}.jpg`)
   );
 
   // Create Sharp pipeline for resizing the image and use pipe to read from bucket read stream
@@ -40,6 +31,14 @@ export default async function resizeImage(image, name, width, height) {
       })
       .on("error", reject)
   );
+
+  // const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
+  // const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream({
+  //   metadata: {
+  //     contentType: "image/jpeg",
+  //   },
+  // });
+  // const file = gcsBucket.file(image.name);
 
   // pipeline
   //   .jpeg()

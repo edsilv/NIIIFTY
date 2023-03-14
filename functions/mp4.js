@@ -3,7 +3,7 @@ import ffmpeg_static from "ffmpeg-static";
 import path from "path";
 import ffprobe from "ffprobe";
 import ffprobeStatic from "ffprobe-static";
-import generateThumbnails from "./thumbnails.js";
+import createThumbnails from "./thumbnails.js";
 import { createTempDir, deleteDir, deleteFile, createDir } from "./fs.js";
 import { createMP4IIIFDerivatives } from "./iiif.js";
 import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
@@ -13,30 +13,29 @@ export default async function processMP4(mp4, metadata) {
   console.log(`--- started processing mp4 ${mp4.name} ---`);
 
   const tempDir = createTempDir();
-  const gcsDir = path.dirname(mp4.name);
 
   const mp4FilePath = path.join(tempDir, "optimized.mp4");
 
   await mp4.download({ destination: mp4FilePath });
   console.log("mp4 downloaded to", mp4FilePath);
 
-  await generateThumbs(mp4FilePath);
+  await createThumbs(mp4FilePath);
   console.log("mp4 thumbnails generated");
 
   const duration = await getDuration(mp4FilePath);
   console.log("mp4 duration", duration);
 
-  await generateStreamingFormats(mp4FilePath);
+  await createStreamingFormats(mp4FilePath);
   console.log("mp4 streaming formats generated");
 
   // set the duration on metadata (this will be updated in the db when processing completes)
   metadata.duration = duration;
 
   // generate IIIF manifest
-  await createMP4IIIFDerivatives(mp4, metadata, tempDir);
+  await createMP4IIIFDerivatives(mp4FilePath, metadata);
 
   // upload the generated files to GCS
-  await uploadFilesToGCS(tempDir, gcsDir);
+  await uploadFilesToGCS(tempDir, metadata.fileId);
 
   // upload the generated files to web3.storage
   const cid = await uploadTempFilesToWeb3Storage(tempDir);
@@ -55,7 +54,7 @@ function promisifyCommand(command) {
   });
 }
 
-async function generateThumbs(mp4) {
+async function createThumbs(mp4) {
   const frameFilePath = path.join(path.dirname(mp4), "frame.jpg");
 
   const command = ffmpeg(mp4)
@@ -69,7 +68,7 @@ async function generateThumbs(mp4) {
 
   console.log("frame created at", frameFilePath);
 
-  await generateThumbnails(frameFilePath);
+  await createThumbnails(frameFilePath);
 
   // delete the temp frame file.
   deleteFile(frameFilePath);
@@ -87,7 +86,7 @@ async function getDuration(mp4) {
   }
 }
 
-async function generateStreamingFormats(mp4) {
+async function createStreamingFormats(mp4) {
   const dir = path.dirname(mp4);
 
   // Define output file paths
