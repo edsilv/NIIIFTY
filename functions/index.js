@@ -87,7 +87,6 @@ export const fileCreated = functions
       return snap.ref.set(
         {
           ...processedProps,
-          // cid,
           processed: true,
         },
         { merge: true }

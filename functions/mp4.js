@@ -6,7 +6,7 @@ import ffprobeStatic from "ffprobe-static";
 import generateThumbnails from "./thumbnails.js";
 import { createTempDir, deleteDir, deleteFile, createDir } from "./fs.js";
 import { createMP4IIIFDerivatives } from "./iiif.js";
-import { uploadFilesToWeb3Storage } from "./web3Storage.js";
+import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
 import { uploadFilesToGCS } from "./gcs.js";
 
 export default async function processMP4(mp4, metadata) {
@@ -39,14 +39,14 @@ export default async function processMP4(mp4, metadata) {
   await uploadFilesToGCS(tempDir, gcsDir);
 
   // upload the generated files to web3.storage
-  await uploadFilesToWeb3Storage(tempDir);
+  const cid = await uploadTempFilesToWeb3Storage(tempDir);
 
   // Once the video has been processed, delete the temp directory.
   deleteDir(tempDir);
 
   console.log(`--- finished processing mp4 ${mp4.name} ---`);
 
-  return { duration };
+  return { cid, duration };
 }
 
 function promisifyCommand(command) {
@@ -57,8 +57,6 @@ function promisifyCommand(command) {
 
 async function generateThumbs(mp4) {
   const frameFilePath = path.join(path.dirname(mp4), "frame.jpg");
-
-  // const targetStorageFrameFilePath = path.join(targetDirectory, "frame.jpg");
 
   const command = ffmpeg(mp4)
     .setFfmpegPath(ffmpeg_static)
@@ -75,21 +73,6 @@ async function generateThumbs(mp4) {
 
   // delete the temp frame file.
   deleteFile(frameFilePath);
-
-  // Upload the frame.
-  // await gcsBucket.upload(targetTempFrameFilePath, {
-  //   destination: targetStorageFrameFilePath,
-  // });
-
-  // console.log("frame uploaded to", targetStorageFrameFilePath);
-
-  // // resize image
-  // const frameFile = gcsBucket.file(targetStorageFrameFilePath);
-  // await generateThumbnails(frameFile);
-
-  // // Once the thumbnails have been uploaded delete the temp files to free up disk space.
-  // fs.unlinkSync(targetTempFrameFilePath);
-  // frameFile.delete();
 }
 
 async function getDuration(mp4) {

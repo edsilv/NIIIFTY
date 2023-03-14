@@ -5,12 +5,12 @@ import fs from "fs";
 
 const web3Storage = new Web3Storage({ token: WEB3_STORAGE_API_KEY });
 
-export async function uploadFilesToWeb3Storage(dirPath) {
-  let files = getAllFiles(dirPath);
+export async function uploadTempFilesToWeb3Storage(tempDirPath) {
+  let files = getAllFiles(tempDirPath);
 
   files = files.map((file) => {
     return {
-      name: file,
+      name: file.replace(/^\/tmp\/\d+\//, "/"),
       stream: () => fs.createReadStream(file),
     };
   });
