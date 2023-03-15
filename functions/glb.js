@@ -1,3 +1,5 @@
+import http from "http";
+import fs from "fs";
 import { NodeIO } from "@gltf-transform/core";
 import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
 import {
@@ -13,12 +15,13 @@ import {
 } from "@gltf-transform/functions";
 import draco3d from "draco3dgltf";
 import path from "path";
-import { gcsBucket } from "./gcs.js";
 import puppeteer from "puppeteer";
-import generateThumbnails from "./thumbnails.js";
+import createThumbnails from "./thumbnails.js";
 import { REGULAR_WIDTH } from "./constants.js";
 import { createGLBIIIFDerivatives } from "./iiif.js";
-import { createTempDir } from "./fs.js";
+import { createTempDir, deleteFile, deleteDir } from "./fs.js";
+import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
+import { uploadFilesToGCS } from "./gcs.js";
 
 export default async function processGLB(glb, metadata) {
   console.log(`--- started processing glb ${glb.name} ---`);
@@ -36,27 +39,28 @@ export default async function processGLB(glb, metadata) {
   console.log("glb downloaded to", glbFilePath);
 
   // optimise glb using gltf-transform
-  const { optimizedGLBFilePath, optimizedGLB } = await optimizeGLB(glbFilePath);
+  await optimizeGLB(glbFilePath);
 
-  // upload the optimized file to GCS so that it can be screenshotted
-  const optimizedFile = gcsBucket.file(optimizedGLBFilePath);
+  // delete the original glb as it's already on GCS and will otherwise be uploaded again
+  deleteFile(glbFilePath);
 
-  await optimizedFile.save(optimizedGLB, {
-    metadata: {
-      contentType: "model/gltf-binary",
-    },
-  });
-
-  await screenshotGLB(optimizedFile);
-
-  // todo: save the screenshot to the temp dir here, then call createThumbnails
+  await screenshotGLB(glb.metadata.mediaLink, tempDir);
 
   // generate IIIF manifest
   await createGLBIIIFDerivatives(glbFilePath, metadata);
 
+  // upload the generated files to GCS
+  await uploadFilesToGCS(tempDir, metadata.fileId);
+
+  // upload the generated files to web3.storage
+  const cid = await uploadTempFilesToWeb3Storage(tempDir);
+
+  // Once the video has been processed, delete the temp directory.
+  deleteDir(tempDir);
+
   console.log(`--- finished processing glb ${glb.name} ---`);
 
-  return {};
+  return { cid };
 }
 
 async function optimizeGLB(glbFilePath) {
@@ -67,8 +71,8 @@ async function optimizeGLB(glbFilePath) {
     .registerDependencies({
       "draco3d.decoder": await draco3d.createDecoderModule(), // Optional.
       "draco3d.encoder": await draco3d.createEncoderModule(), // Optional.
-    })
-    .setAllowHTTP(true);
+    });
+  // .setAllowHTTP(true);
 
   const document = await io.read(glbFilePath);
 
@@ -91,16 +95,17 @@ async function optimizeGLB(glbFilePath) {
     draco()
   );
 
-  // const optimizedGLB = await io.writeBinary(document);
+  const optimizedGLB = await io.writeBinary(document);
 
   const optimizedGLBFilePath = path.join(
     path.dirname(glbFilePath),
     "optimized.glb"
   );
 
-  await io.writeBinary(optimizedGLBFilePath, document);
+  // write the optimized glb to the temp dir
+  fs.writeFileSync(optimizedGLBFilePath, optimizedGLB);
 
-  return { optimizedGLBFilePath, document };
+  return optimizedGLBFilePath;
 }
 
 function toHTMLAttributeString(args) {
@@ -158,9 +163,54 @@ function modelViewerHTMLTemplate(
   `;
 }
 
-async function screenshotGLB(file) {
-  // take screenshot for thumbnail
-  const url = file.metadata.mediaLink;
+// async function serveGLB(glbFilePath) {
+//   return new Promise((resolve, reject) => {
+//     const server = http.createServer((req, res) => {
+//       res.setHeader("Content-Type", "model/gltf-binary");
+//       fs.createReadStream(glbFilePath).pipe(res);
+//     });
+
+//     const connections = new Set();
+
+//     server.on("connection", (connection) => {
+//       connections.add(connection);
+//       connection.on("close", () => {
+//         connections.delete(connection);
+//       });
+//     });
+
+//     server.on("error", (error) => {
+//       console.log("Server error:", error);
+//     });
+
+//     server.listen(() => {
+//       const port = server.address().port;
+//       console.log(`Server is running on port ${port}`);
+
+//       // use the randomly assigned port in the src URL
+//       const src = `http://localhost:${port}`;
+
+//       console.log(`src is ${src}`);
+
+//       resolve({ src, server });
+//     });
+
+//     server.closeConnections = () => {
+//       for (const connection of connections) {
+//         connection.destroy();
+//       }
+//       connections.clear();
+//     };
+
+//     server.on("close", () => {
+//       console.log(`closing ${connections.size} connections`);
+//       server.closeConnections();
+//     });
+//   });
+// }
+
+async function screenshotGLB(src, dir) {
+  // const { src, server } = await serveGLB(glbFilePath);
 
   const args = [
     "--no-sandbox",
@@ -177,7 +227,6 @@ async function screenshotGLB(file) {
   const devicePixelRatio = 1;
   const modelViewerUrl =
     "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
-  const src = url;
   const backgroundColor = "#000000";
 
   const browser = await puppeteer.launch({
@@ -191,6 +240,9 @@ async function screenshotGLB(file) {
   });
 
   const page = await browser.newPage();
+
+  // unlimited timeout
+  await page.setDefaultNavigationTimeout(0);
 
   const data = modelViewerHTMLTemplate(
     modelViewerUrl,
@@ -218,22 +270,14 @@ async function screenshotGLB(file) {
 
   const screenshot = await element.screenshot(); // returns a buffer
 
-  const screenshotFilePath = path.join(
-    path.dirname(file.name),
-    "screenshot.jpg"
-  );
-  const screenshotFile = gcsBucket.file(screenshotFilePath);
+  // save the screenshot to the temp dir, then call createThumbnails
+  const screenshotPath = path.join(dir, "screenshot.png");
+  fs.writeFileSync(screenshotPath, screenshot);
 
-  await screenshotFile.save(screenshot, {
-    metadata: {
-      contentType: "image/jpeg",
-    },
-  });
+  await createThumbnails(screenshotPath);
 
-  await generateThumbnails(screenshotFile);
-
-  // delete screenshotFile
-  await screenshotFile.delete();
+  // delete screenshot
+  deleteFile(screenshotPath);
 
   await browser.close();
 }
