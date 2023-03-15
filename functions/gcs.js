@@ -18,21 +18,11 @@ export async function uploadFilesToGCS(dirPath, gcsPath) {
         file.replace(`${dirPath}/`, "")
       );
 
-      // const contentType = getFileContentType(file);
-      // const cacheControl = getCacheControl(file);
-
       const fileStream = fs.createReadStream(file);
 
-      // todo, set cache control on iiif index.json
       const writeStream = gcsBucket
         .file(targetStorageFilePath)
         .createWriteStream({
-          // metadata: {
-          //   contentType,
-          //   cacheControl,
-          // },
-          // https://github.com/googleapis/nodejs-storage/issues/807
-          // configPath: `${writableDirectory}/.config`,
           resumable: true,
         });
 
@@ -42,26 +32,3 @@ export async function uploadFilesToGCS(dirPath, gcsPath) {
     })
   );
 }
-
-// export async function uploadFilesToGCS(dirPath, gcsPath) {
-//   const files = getAllFiles(dirPath);
-
-//   // Loop through each file and upload it to the bucket
-//   for (const file of files) {
-//     const targetStorageFilePath = path.join(
-//       gcsPath,
-//       file.replace(`${dirPath}/`, "")
-//     );
-
-//     // todo, set cache control on iiif index.json
-//     // cacheControl: "public, max-age=60", // cache for 1 minute
-//     await gcsBucket.upload(file, {
-//       destination: targetStorageFilePath,
-//       metadata: {
-//         contentType: file.contentType,
-//         // cacheControl: "public, max-age=31536000",
-//       },
-//       resumable: false,
-//     });
-//   }
-// }

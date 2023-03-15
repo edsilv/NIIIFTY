@@ -8,7 +8,7 @@ import path from "path";
 import { getIIIFManifestJson } from "./iiif.js";
 import { gcsBucket } from "./gcs.js";
 import processImage from "./image.js";
-// import processGLB from "./glb.js";
+import processGLB from "./glb.js";
 import processMP4 from "./mp4.js";
 import { GCS_URL } from "./constants.js";
 
@@ -21,11 +21,15 @@ async function updateMetadataDerivatives(fileId, metadata) {
   const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
   const iiifManifestFile = gcsBucket.file(path.join(fileId, "iiif/index.json"));
 
+  // todo: will randomising this cause the cache to reset and serve the new file immediately after being changed?
+  const cacheControlSeconds =
+    Math.floor(Math.random() * (7200 - 3600 + 1)) + 3600;
+
   // write updated iiif manifest to bucket
   await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
     metadata: {
       contentType: "application/json",
-      cacheControl: "public, max-age=60", // cache for 1 minute
+      cacheControl: `public, max-age=${cacheControlSeconds}`,
     },
   });
 
@@ -76,7 +80,7 @@ export const fileCreated = functions
         }
         case "model/gltf-binary": {
           // process glb
-          // processedProps = await processGLB(originalFile, metadata);
+          processedProps = await processGLB(originalFile, metadata);
           break;
         }
       }

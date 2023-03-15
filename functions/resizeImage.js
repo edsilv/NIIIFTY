@@ -31,33 +31,4 @@ export default async function resizeImage(imageFilePath, name, width, height) {
       })
       .on("error", reject)
   );
-
-  // const imageFilePath = path.join(path.dirname(image.name), `${name}.jpg`);
-  // const imageUploadStream = gcsBucket.file(imageFilePath).createWriteStream({
-  //   metadata: {
-  //     contentType: "image/jpeg",
-  //   },
-  // });
-  // const file = gcsBucket.file(image.name);
-
-  // pipeline
-  //   .jpeg()
-  //   .resize({
-  //     width,
-  //     height,
-  //     fit: sharp.fit.cover,
-  //     format: "jpeg",
-  //     quality: 80,
-  //   })
-  //   .pipe(imageUploadStream);
-
-  // file.createReadStream().pipe(pipeline);
-
-  // return new Promise((resolve, reject) =>
-  //   imageUploadStream
-  //     .on("finish", async () => {
-  //       resolve();
-  //     })
-  //     .on("error", reject)
-  // );
 }

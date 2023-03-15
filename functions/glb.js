@@ -1,226 +1,239 @@
-// import { NodeIO } from "@gltf-transform/core";
-// import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
-// import {
-//   dedup,
-//   flatten,
-//   join,
-//   weld,
-//   resample,
-//   prune,
-//   sparse,
-//   // textureCompress,
-//   draco,
-// } from "@gltf-transform/functions";
-// import draco3d from "draco3dgltf";
-// import fetch from "node-fetch";
-// import path from "path";
-// import { gcsBucket } from "./gcs.js";
-// import puppeteer from "puppeteer";
-// import generateThumbnails from "./thumbnails.js";
-// import { REGULAR_WIDTH } from "./constants.js";
-// import { createGLBIIIFDerivatives } from "./iiif.js";
+import { NodeIO } from "@gltf-transform/core";
+import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
+import {
+  dedup,
+  flatten,
+  join,
+  weld,
+  resample,
+  prune,
+  sparse,
+  // textureCompress,
+  draco,
+} from "@gltf-transform/functions";
+import draco3d from "draco3dgltf";
+import path from "path";
+import { gcsBucket } from "./gcs.js";
+import puppeteer from "puppeteer";
+import generateThumbnails from "./thumbnails.js";
+import { REGULAR_WIDTH } from "./constants.js";
+import { createGLBIIIFDerivatives } from "./iiif.js";
+import { createTempDir } from "./fs.js";
 
-// export default async function processGLB(glb, metadata) {
-//   console.log(`--- started processing glb ${glb.name} ---`);
+export default async function processGLB(glb, metadata) {
+  console.log(`--- started processing glb ${glb.name} ---`);
 
-//   // set the correct mime type on the original file as this is not passed on upload
-//   await glb.setMetadata({
-//     contentType: "model/gltf-binary",
-//   });
+  // set the correct mime type on the original file as this is not passed on upload
+  await glb.setMetadata({
+    contentType: "model/gltf-binary",
+  });
 
-//   // optimise glb using gltf-transform
-//   const optimizedFile = await optimizeGLB(glb);
+  const tempDir = createTempDir();
 
-//   await screenshotGLB(optimizedFile);
+  const glbFilePath = path.join(tempDir, path.basename(glb.name));
 
-//   // generate IIIF manifest
-//   await createGLBIIIFDerivatives(glbFilePath, metadata);
+  await glb.download({ destination: glbFilePath });
+  console.log("glb downloaded to", glbFilePath);
 
-//   console.log(`--- finished processing glb ${glb.name} ---`);
+  // optimise glb using gltf-transform
+  const { optimizedGLBFilePath, optimizedGLB } = await optimizeGLB(glbFilePath);
 
-//   return {};
-// }
+  // upload the optimized file to GCS so that it can be screenshotted
+  const optimizedFile = gcsBucket.file(optimizedGLBFilePath);
 
-// async function optimizeGLB(glb) {
-//   console.log("optimizing glb", glb.name);
+  await optimizedFile.save(optimizedGLB, {
+    metadata: {
+      contentType: "model/gltf-binary",
+    },
+  });
 
-//   const io = new NodeIO(fetch)
-//     .registerExtensions(KHRONOS_EXTENSIONS)
-//     .registerDependencies({
-//       "draco3d.decoder": await draco3d.createDecoderModule(), // Optional.
-//       "draco3d.encoder": await draco3d.createEncoderModule(), // Optional.
-//     })
-//     .setAllowHTTP(true);
+  await screenshotGLB(optimizedFile);
 
-//   const document = await io.read(glb.metadata.mediaLink);
+  // todo: save the screenshot to the temp dir here, then call createThumbnails
 
-//   await document.transform(
-//     dedup(),
-//     // instance({ min: 5 }),
-//     flatten(),
-//     join(),
-//     weld({ tolerance: 0.0001 }),
-//     // simplify({ simplifier: MeshoptSimplifier, ratio: 0.001, error: 0.0001 }),
-//     resample(),
-//     prune({ keepAttributes: false, keepLeaves: false }),
-//     sparse(),
-//     // this errors if the model doesn't have any textures
-//     // textureCompress({
-//     //   encoder: sharp,
-//     //   targetFormat: "auto",
-//     //   resize: [2048, 2048],
-//     // }),
-//     draco()
-//   );
+  // generate IIIF manifest
+  await createGLBIIIFDerivatives(glbFilePath, metadata);
 
-//   const optimizedGLB = await io.writeBinary(document);
+  console.log(`--- finished processing glb ${glb.name} ---`);
 
-//   const optimizedGLBFilePath = path.join(
-//     path.dirname(glb.name),
-//     "optimized.glb"
-//   );
-//   const optimizedFile = gcsBucket.file(optimizedGLBFilePath);
+  return {};
+}
 
-//   await optimizedFile.save(optimizedGLB, {
-//     metadata: {
-//       contentType: "model/gltf-binary",
-//     },
-//   });
+async function optimizeGLB(glbFilePath) {
+  console.log("optimizing glb", glbFilePath);
 
-//   return optimizedFile;
-// }
+  const io = new NodeIO()
+    .registerExtensions(KHRONOS_EXTENSIONS)
+    .registerDependencies({
+      "draco3d.decoder": await draco3d.createDecoderModule(), // Optional.
+      "draco3d.encoder": await draco3d.createEncoderModule(), // Optional.
+    })
+    .setAllowHTTP(true);
 
-// function toHTMLAttributeString(args) {
-//   if (!args) return "";
+  const document = await io.read(glbFilePath);
 
-//   return Object.entries(args)
-//     .map(([key, value]) => {
-//       return `${key}="${value}"`;
-//     })
-//     .join("\n");
-// }
+  await document.transform(
+    dedup(),
+    // instance({ min: 5 }),
+    flatten(),
+    join(),
+    weld({ tolerance: 0.0001 }),
+    // simplify({ simplifier: MeshoptSimplifier, ratio: 0.001, error: 0.0001 }),
+    resample(),
+    prune({ keepAttributes: false, keepLeaves: false }),
+    sparse(),
+    // this errors if the model doesn't have any textures
+    // textureCompress({
+    //   encoder: sharp,
+    //   targetFormat: "auto",
+    //   resize: [2048, 2048],
+    // }),
+    draco()
+  );
 
-// function modelViewerHTMLTemplate(
-//   modelViewerUrl,
-//   width,
-//   height,
-//   src,
-//   backgroundColor,
-//   devicePixelRatio
-// ) {
-//   const defaultAttributes = {
-//     id: "snapshot-viewer",
-//     style: `background-color: ${backgroundColor};`,
-//     "interaction-prompt": "none",
-//     src: src,
-//   };
+  // const optimizedGLB = await io.writeBinary(document);
 
-//   const defaultAttributesString = toHTMLAttributeString(defaultAttributes);
+  const optimizedGLBFilePath = path.join(
+    path.dirname(glbFilePath),
+    "optimized.glb"
+  );
 
-//   return `
-//     <!DOCTYPE html>
-//     <html>
-//       <head>
-//         <meta name="viewport" content="width=device-width, initial-scale=${devicePixelRatio}">
-//         <script type="module"
-//           src="${modelViewerUrl}">
-//         </script>
-//         <style>
-//           body {
-//             margin: 0;
-//           }
-//           model-viewer {
-//             --progress-bar-color: transparent;
-//             width: ${width}px;
-//             height: ${height}px;
-//           }
-//         </style>
-//       </head>
-//       <body>
-//         <model-viewer
-//           ${defaultAttributesString}
-//         />
-//       </body>
-//     </html>
-//   `;
-// }
+  await io.writeBinary(optimizedGLBFilePath, document);
 
-// async function screenshotGLB(file) {
-//   // take screenshot for thumbnail
-//   const url = file.metadata.mediaLink;
+  return { optimizedGLBFilePath, document };
+}
 
-//   const args = [
-//     "--no-sandbox",
-//     "--disable-gpu",
-//     "--disable-dev-shm-usage",
-//     "--disable-setuid-sandbox",
-//     "--no-zygote",
-//     "--single-process",
-//   ];
+function toHTMLAttributeString(args) {
+  if (!args) return "";
 
-//   const headless = true;
-//   const width = REGULAR_WIDTH;
-//   const height = REGULAR_WIDTH;
-//   const devicePixelRatio = 1;
-//   const modelViewerUrl =
-//     "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
-//   const src = url;
-//   const backgroundColor = "#000000";
+  return Object.entries(args)
+    .map(([key, value]) => {
+      return `${key}="${value}"`;
+    })
+    .join("\n");
+}
 
-//   const browser = await puppeteer.launch({
-//     args,
-//     defaultViewport: {
-//       width,
-//       height,
-//       deviceScaleFactor: devicePixelRatio,
-//     },
-//     headless,
-//   });
+function modelViewerHTMLTemplate(
+  modelViewerUrl,
+  width,
+  height,
+  src,
+  backgroundColor,
+  devicePixelRatio
+) {
+  const defaultAttributes = {
+    id: "snapshot-viewer",
+    style: `background-color: ${backgroundColor};`,
+    "interaction-prompt": "none",
+    src: src,
+  };
 
-//   const page = await browser.newPage();
+  const defaultAttributesString = toHTMLAttributeString(defaultAttributes);
 
-//   const data = modelViewerHTMLTemplate(
-//     modelViewerUrl,
-//     width,
-//     height,
-//     src,
-//     backgroundColor,
-//     devicePixelRatio
-//   );
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=${devicePixelRatio}">
+        <script type="module"
+          src="${modelViewerUrl}">
+        </script>
+        <style>
+          body {
+            margin: 0;
+          }
+          model-viewer {
+            --progress-bar-color: transparent;
+            width: ${width}px;
+            height: ${height}px;
+          }
+        </style>
+      </head>
+      <body>
+        <model-viewer
+          ${defaultAttributesString}
+        />
+      </body>
+    </html>
+  `;
+}
 
-//   // console.log("modelviewer template", data);
+async function screenshotGLB(file) {
+  // take screenshot for thumbnail
+  const url = file.metadata.mediaLink;
 
-//   await page.setContent(data, {
-//     waitUntil: ["domcontentloaded", "networkidle0"],
-//   });
+  const args = [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-setuid-sandbox",
+    "--no-zygote",
+    "--single-process",
+  ];
 
-//   const element = await page.$("model-viewer");
-//   const boundingBox = await element.boundingBox();
+  const headless = true;
+  const width = REGULAR_WIDTH;
+  const height = REGULAR_WIDTH;
+  const devicePixelRatio = 1;
+  const modelViewerUrl =
+    "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
+  const src = url;
+  const backgroundColor = "#000000";
 
-//   await page.setViewport({
-//     width: Math.ceil(boundingBox.width),
-//     height: Math.ceil(boundingBox.height),
-//     deviceScaleFactor: devicePixelRatio,
-//   });
+  const browser = await puppeteer.launch({
+    args,
+    defaultViewport: {
+      width,
+      height,
+      deviceScaleFactor: devicePixelRatio,
+    },
+    headless,
+  });
 
-//   const screenshot = await element.screenshot(); // returns a buffer
+  const page = await browser.newPage();
 
-//   const screenshotFilePath = path.join(
-//     path.dirname(file.name),
-//     "screenshot.jpg"
-//   );
-//   const screenshotFile = gcsBucket.file(screenshotFilePath);
+  const data = modelViewerHTMLTemplate(
+    modelViewerUrl,
+    width,
+    height,
+    src,
+    backgroundColor,
+    devicePixelRatio
+  );
 
-//   await screenshotFile.save(screenshot, {
-//     metadata: {
-//       contentType: "image/jpeg",
-//     },
-//   });
+  // console.log("modelviewer template", data);
 
-//   await generateThumbnails(screenshotFile);
+  await page.setContent(data, {
+    waitUntil: ["domcontentloaded", "networkidle0"],
+  });
 
-//   // delete screenshotFile
-//   await screenshotFile.delete();
+  const element = await page.$("model-viewer");
+  const boundingBox = await element.boundingBox();
 
-//   await browser.close();
-// }
+  await page.setViewport({
+    width: Math.ceil(boundingBox.width),
+    height: Math.ceil(boundingBox.height),
+    deviceScaleFactor: devicePixelRatio,
+  });
+
+  const screenshot = await element.screenshot(); // returns a buffer
+
+  const screenshotFilePath = path.join(
+    path.dirname(file.name),
+    "screenshot.jpg"
+  );
+  const screenshotFile = gcsBucket.file(screenshotFilePath);
+
+  await screenshotFile.save(screenshot, {
+    metadata: {
+      contentType: "image/jpeg",
+    },
+  });
+
+  await generateThumbnails(screenshotFile);
+
+  // delete screenshotFile
+  await screenshotFile.delete();
+
+  await browser.close();
+}
