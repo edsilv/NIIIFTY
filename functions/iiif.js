@@ -180,8 +180,7 @@ function createIIIFDir(filePath) {
 }
 
 export async function createImageIIIFDerivatives(imageFilePath, metadata) {
-  console.log("metadata", metadata);
-
+  const tempDir = path.dirname(imageFilePath);
   const iiifDir = createIIIFDir(imageFilePath);
   const zipFile = path.join(iiifDir, "iiif.zip");
 

@@ -1,4 +1,3 @@
-import http from "http";
 import fs from "fs";
 import { NodeIO } from "@gltf-transform/core";
 import { KHRONOS_EXTENSIONS } from "@gltf-transform/extensions";
@@ -22,6 +21,9 @@ import { createGLBIIIFDerivatives } from "./iiif.js";
 import { createTempDir, deleteFile, deleteDir } from "./fs.js";
 import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
 import { uploadFilesToGCS } from "./gcs.js";
+import express from "express";
+import cors from "cors";
+import net from "net";
 
 export default async function processGLB(glb, metadata) {
   console.log(`--- started processing glb ${glb.name} ---`);
@@ -39,14 +41,17 @@ export default async function processGLB(glb, metadata) {
   console.log("glb downloaded to", glbFilePath);
 
   // optimise glb using gltf-transform
-  await optimizeGLB(glbFilePath);
-
-  // todo: upload the optimized glb to GCS and use that for the screenshot
+  const optimizedGLBFilePath = await optimizeGLB(glbFilePath);
 
   // delete the original glb as it's already on GCS and will otherwise be uploaded again
   deleteFile(glbFilePath);
 
-  await screenshotGLB(glb.metadata.mediaLink, tempDir);
+  const screenshotPath = await screenshotGLB(optimizedGLBFilePath);
+
+  await createThumbnails(screenshotPath);
+
+  // delete screenshot
+  deleteFile(screenshotPath);
 
   // generate IIIF manifest
   await createGLBIIIFDerivatives(glbFilePath, metadata);
@@ -165,54 +170,99 @@ function modelViewerHTMLTemplate(
   `;
 }
 
-// async function serveGLB(glbFilePath) {
-//   return new Promise((resolve, reject) => {
-//     const server = http.createServer((req, res) => {
-//       res.setHeader("Content-Type", "model/gltf-binary");
-//       fs.createReadStream(glbFilePath).pipe(res);
-//     });
+function getAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
 
-//     const connections = new Set();
+    server.unref(); // Allows the program to exit if this is the only active server
 
-//     server.on("connection", (connection) => {
-//       connections.add(connection);
-//       connection.on("close", () => {
-//         connections.delete(connection);
-//       });
-//     });
+    server.on("error", (err) => {
+      reject(err);
+    });
 
-//     server.on("error", (error) => {
-//       console.log("Server error:", error);
-//     });
+    server.on("listening", () => {
+      const port = server.address().port;
+      server.close(() => {
+        resolve(port);
+      });
+    });
 
-//     server.listen(() => {
-//       const port = server.address().port;
-//       console.log(`Server is running on port ${port}`);
+    server.listen(0, "localhost");
+  });
+}
 
-//       // use the randomly assigned port in the src URL
-//       const src = `http://localhost:${port}`;
+function serveGLB(glbFilePath) {
+  return new Promise(async (resolve, reject) => {
+    console.log(`serveGLB: ${glbFilePath}`);
 
-//       console.log(`src is ${src}`);
+    const dir = path.dirname(glbFilePath);
+    const file = path.basename(glbFilePath);
 
-//       resolve({ src, server });
-//     });
+    const app = express();
+    const port = await getAvailablePort();
 
-//     server.closeConnections = () => {
-//       for (const connection of connections) {
-//         connection.destroy();
-//       }
-//       connections.clear();
-//     };
+    app.use(cors());
+    app.use(express.static(dir));
 
-//     server.on("close", () => {
-//       console.log(`closing ${connections.size} connections`);
-//       server.closeConnections();
-//     });
-//   });
-// }
+    const src = `http://localhost:${port}/${file}`;
 
-async function screenshotGLB(src, dir) {
-  // const { src, server } = await serveGLB(glbFilePath);
+    process.on("SIGTERM", shutDown);
+    process.on("SIGINT", shutDown);
+
+    let connections = [];
+
+    app.get("/", (req, res) => res.json({ ping: true }));
+
+    const server = app.listen(port, () => {
+      console.log(`Server listening on port: ${port}`);
+      resolve({
+        src,
+        server,
+      });
+    });
+
+    server.on("connection", (connection) => {
+      connections.push(connection);
+      connection.on(
+        "close",
+        () => (connections = connections.filter((curr) => curr !== connection))
+      );
+    });
+
+    // setInterval(
+    //   () =>
+    //     server.getConnections((err, connections) =>
+    //       console.log(`${connections} connections currently open`)
+    //     ),
+    //   1000
+    // );
+
+    function shutDown() {
+      console.log("Received kill signal, shutting down gracefully");
+      server.close(() => {
+        console.log("Closed out remaining connections");
+        process.exit(0);
+      });
+
+      setTimeout(() => {
+        console.error(
+          "Could not close connections in time, forcefully shutting down"
+        );
+        process.exit(1);
+      }, 10000);
+
+      connections.forEach((curr) => curr.end());
+      setTimeout(() => connections.forEach((curr) => curr.destroy()), 5000);
+    }
+  });
+}
+
+async function screenshotGLB(glbFilePath) {
+  console.log(`screenshotGLB: ${glbFilePath}`);
+
+  const { src } = await serveGLB(glbFilePath);
+
+  console.log(`glb src: ${src}`);
 
   const args = [
     "--no-sandbox",
@@ -243,7 +293,6 @@ async function screenshotGLB(src, dir) {
 
   const page = await browser.newPage();
 
-  // unlimited timeout
   await page.setDefaultNavigationTimeout(0);
 
   const data = modelViewerHTMLTemplate(
@@ -272,14 +321,11 @@ async function screenshotGLB(src, dir) {
 
   const screenshot = await element.screenshot(); // returns a buffer
 
-  // save the screenshot to the temp dir, then call createThumbnails
-  const screenshotPath = path.join(dir, "screenshot.png");
+  const screenshotPath = path.join(path.dirname(glbFilePath), "screenshot.png");
+
   fs.writeFileSync(screenshotPath, screenshot);
 
-  await createThumbnails(screenshotPath);
-
-  // delete screenshot
-  deleteFile(screenshotPath);
-
   await browser.close();
+
+  return screenshotPath;
 }
