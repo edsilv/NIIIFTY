@@ -69,10 +69,10 @@ export const fileCreated = functions
           processedProps = await processImage(originalFile, metadata);
           break;
         }
-        case "audio/mpeg": {
-          // process audio
-          break;
-        }
+        // case "audio/mpeg": {
+        //   // process audio
+        //   break;
+        // }
         case "video/mp4": {
           // process video
           processedProps = await processMP4(originalFile, metadata);
@@ -110,9 +110,17 @@ export const fileUpdated = functions
     // Get an object representing the document
     const metadata = change.after.data();
 
-    // only continue if something other that the processed flag has changed
+    console.log("metadata", metadata);
+
+    // if the processed flag has changed, ignore
     if (previousValue.processed !== metadata.processed) {
-      console.log("only the processed flag has changed, skipping");
+      console.log("processed flag has changed, skipping");
+      return;
+    }
+
+    // if the cid has changed, ignore
+    if (previousValue.cid !== metadata.cid) {
+      console.log("cid has changed, skipping");
       return;
     }
 

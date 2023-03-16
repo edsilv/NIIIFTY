@@ -21,7 +21,7 @@ export function FileUploader(props) {
   const [files, setFiles] = useState<FileExtended[]>([]);
 
   const acceptedFileTypes = [
-    "audio/mpeg",
+    // "audio/mpeg",
     "image/jpeg",
     "image/png",
     "image/tif",
