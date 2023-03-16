@@ -41,6 +41,8 @@ export default async function processGLB(glb, metadata) {
   // optimise glb using gltf-transform
   await optimizeGLB(glbFilePath);
 
+  // todo: upload the optimized glb to GCS and use that for the screenshot
+
   // delete the original glb as it's already on GCS and will otherwise be uploaded again
   deleteFile(glbFilePath);
 
