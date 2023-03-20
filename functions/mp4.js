@@ -115,13 +115,16 @@ async function createStreamingFormats(mp4) {
   console.log("dash created at", dashFilePath);
 
   const hlsCommand = ffmpeg(mp4)
-    .videoCodec("libx264")
-    .audioCodec("aac")
-    .audioBitrate("64k")
-    .videoBitrate("550k")
-    // .addOption("-max_muxing_queue_size", "1024")
-    .addOption("-preset", "veryfast")
-    .addOption("-profile:v", "main")
+    // .videoCodec("libx264")
+    // .audioCodec("aac")
+    // .audioBitrate("64k")
+    // .videoBitrate("550k")
+    // // .addOption("-max_muxing_queue_size", "1024")
+    // .addOption("-preset", "veryfast")
+    // .addOption("-profile:v", "main")
+    .addOption("-start_number", "0")
+    .addOption("-hls_time", "10")
+    .addOption("-hls_list_size", "0")
     .format("hls")
     .output(hlsFilePath);
 

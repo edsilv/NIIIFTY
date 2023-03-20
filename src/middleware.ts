@@ -1,26 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { hash2 } from './utils/Utils';
+import { NextRequest, NextResponse } from "next/server";
+import { hash2 } from "./utils/Utils";
 
 export const config = {
-  matcher: ['/', '/index'],
-}
+  matcher: ["/", "/index"],
+};
 
 // https://github.com/vercel/examples/blob/main/edge-functions/basic-auth-password/middleware.ts
 export function middleware(req: NextRequest) {
-  const basicAuth = req.headers.get('authorization');
+  const basicAuth = req.headers.get("authorization");
   const url = req.nextUrl;
 
   if (basicAuth) {
-    const authValue = basicAuth.split(' ')[1];
-    const [user, pwd] = atob(authValue).split(':');
+    const authValue = basicAuth.split(" ")[1];
+    const [user, pwd] = atob(authValue).split(":");
 
     // clear in chrome://settings/passwords
-    if (hash2(user) === -877169473 && hash2(pwd) === -1361217365) {
+    // use https://codesandbox.io/s/hasher-vcjwju to generate hash
+    if (hash2(user) === -877169473 && hash2(pwd) === -458352693) {
       return NextResponse.next();
     }
   }
 
-  url.pathname = '/api/auth';
+  url.pathname = "/api/auth";
 
   return NextResponse.rewrite(url);
 }

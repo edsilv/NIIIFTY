@@ -22,8 +22,11 @@ async function updateMetadataDerivatives(fileId, metadata) {
   const iiifManifestFile = gcsBucket.file(path.join(fileId, "iiif/index.json"));
 
   // todo: will randomising this cause the cache to reset and serve the new file immediately after being changed?
-  const cacheControlSeconds =
-    Math.floor(Math.random() * (7200 - 3600 + 1)) + 3600;
+  // const cacheControlSeconds =
+  //   Math.floor(Math.random() * (7200 - 3600 + 1)) + 3600;
+
+  // cache for 1 minute
+  const cacheControlSeconds = 60;
 
   // write updated iiif manifest to bucket
   await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
@@ -110,17 +113,18 @@ export const fileUpdated = functions
     // Get an object representing the document
     const metadata = change.after.data();
 
-    console.log("metadata", metadata);
+    // console.log("previous value", previousValue);
+    // console.log("new value", metadata);
+
+    // if the file has not been processed, ignore
+    if (!metadata.processed) {
+      console.log("file has not been processed, skipping");
+      return;
+    }
 
     // if the processed flag has changed, ignore
     if (previousValue.processed !== metadata.processed) {
       console.log("processed flag has changed, skipping");
-      return;
-    }
-
-    // if the cid has changed, ignore
-    if (previousValue.cid !== metadata.cid) {
-      console.log("cid has changed, skipping");
       return;
     }
 
