@@ -101,20 +101,6 @@ async function createStreamingFormats(mp4) {
   const hlsFilePath = path.join(hlsDir, "optimized.m3u8");
 
   const dashCommand = ffmpeg(mp4)
-    .videoCodec("libx264")
-    .audioCodec("aac")
-    .audioBitrate("64k")
-    .videoBitrate("550k")
-    // .addOption("-max_muxing_queue_size", "1024")
-    .addOption("-preset", "veryfast")
-    .addOption("-profile:v", "main")
-    .format("dash")
-    .output(dashFilePath);
-
-  await promisifyCommand(dashCommand);
-  console.log("dash created at", dashFilePath);
-
-  const hlsCommand = ffmpeg(mp4)
     // .videoCodec("libx264")
     // .audioCodec("aac")
     // .audioBitrate("64k")
@@ -122,6 +108,13 @@ async function createStreamingFormats(mp4) {
     // // .addOption("-max_muxing_queue_size", "1024")
     // .addOption("-preset", "veryfast")
     // .addOption("-profile:v", "main")
+    .format("dash")
+    .output(dashFilePath);
+
+  await promisifyCommand(dashCommand);
+  console.log("dash created at", dashFilePath);
+
+  const hlsCommand = ffmpeg(mp4)
     .addOption("-start_number", "0")
     .addOption("-hls_time", "10")
     .addOption("-hls_list_size", "0")
