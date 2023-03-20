@@ -18,33 +18,14 @@ import puppeteer from "puppeteer";
 import createThumbnails from "./thumbnails.js";
 import { REGULAR_WIDTH } from "./constants.js";
 import { createGLBIIIFDerivatives } from "./iiif.js";
-import { createTempDir, deleteFile, deleteDir } from "./fs.js";
-import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
-import { uploadFilesToGCS } from "./gcs.js";
+import { deleteFile } from "./fs.js";
 import express from "express";
 import cors from "cors";
 import net from "net";
 
-export default async function processGLB(glb, metadata) {
-  console.log(`--- started processing glb ${glb.name} ---`);
-
-  // set the correct mime type on the original file as this is not passed on upload
-  await glb.setMetadata({
-    contentType: "model/gltf-binary",
-  });
-
-  const tempDir = createTempDir();
-
-  const glbFilePath = path.join(tempDir, path.basename(glb.name));
-
-  await glb.download({ destination: glbFilePath });
-  console.log("glb downloaded to", glbFilePath);
-
+export default async function processGLB(glbFilePath, metadata) {
   // optimise glb using gltf-transform
   const optimizedGLBFilePath = await optimizeGLB(glbFilePath);
-
-  // delete the original glb as it's already on GCS and will otherwise be uploaded again
-  deleteFile(glbFilePath);
 
   const screenshotPath = await screenshotGLB(optimizedGLBFilePath);
 
@@ -56,18 +37,10 @@ export default async function processGLB(glb, metadata) {
   // generate IIIF manifest
   await createGLBIIIFDerivatives(glbFilePath, metadata);
 
-  // upload the generated files to GCS
-  await uploadFilesToGCS(tempDir, metadata.fileId);
+  // delete the original glb as it's already on GCS and will otherwise be uploaded again
+  deleteFile(glbFilePath);
 
-  // upload the generated files to web3.storage
-  const cid = await uploadTempFilesToWeb3Storage(tempDir);
-
-  // Once the video has been processed, delete the temp directory.
-  deleteDir(tempDir);
-
-  console.log(`--- finished processing glb ${glb.name} ---`);
-
-  return { cid };
+  return {};
 }
 
 async function optimizeGLB(glbFilePath) {

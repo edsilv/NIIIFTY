@@ -4,40 +4,13 @@
 // https://firebase.google.com/docs/functions/beta/get-started
 import functions from "firebase-functions";
 import path from "path";
-// import addFilesToWeb3Storage from "./web3Storage.js";
-import { getIIIFManifestJson } from "./iiif.js";
-import { gcsBucket } from "./gcs.js";
+import { gcsBucket, uploadFilesToGCS, deleteGCSFiles } from "./gcs.js";
 import processImage from "./image.js";
 import processGLB from "./glb.js";
 import processMP4 from "./mp4.js";
-import { GCS_URL } from "./constants.js";
-
-async function updateMetadataDerivatives(fileId, metadata) {
-  console.log(`updating derivatives for ${fileId}`);
-
-  // e.g. https://niiifty-bd2e2.appspot.com.storage.googleapis.com/EoLsdWm2MHekqS5eANuJ
-  const id = `${GCS_URL}/${fileId}`;
-
-  const iiifManifestJSON = getIIIFManifestJson(`${id}`, metadata);
-  const iiifManifestFile = gcsBucket.file(path.join(fileId, "iiif/index.json"));
-
-  // todo: will randomising this cause the cache to reset and serve the new file immediately after being changed?
-  // const cacheControlSeconds =
-  //   Math.floor(Math.random() * (7200 - 3600 + 1)) + 3600;
-
-  // cache for 1 minute
-  const cacheControlSeconds = 60;
-
-  // write updated iiif manifest to bucket
-  await iiifManifestFile.save(JSON.stringify(iiifManifestJSON, null, 2), {
-    metadata: {
-      contentType: "application/json",
-      cacheControl: `public, max-age=${cacheControlSeconds}`,
-    },
-  });
-
-  console.log(`finished updating derivatives for ${fileId}`);
-}
+import { createTempDir, deleteDir } from "./fs.js";
+import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
+import updateMetadataDerivatives from "./updateMetadataDerivatives.js";
 
 // when a file is created in firestore,
 // generate derivatives, and replicate to web3.storage
@@ -63,35 +36,55 @@ export const fileCreated = functions
         ...snap.data(),
       };
 
+      console.log(
+        `--- started processing ${originalFile.name} (${metadata.type})---`
+      );
+
+      const tempDir = createTempDir();
+      const tempFilePath = path.join(tempDir, path.basename(originalFile.name));
+      await originalFile.download({ destination: tempFilePath });
+
+      console.log(`${originalFile.name} downloaded to ${tempFilePath}`);
+
       switch (metadata.type) {
         case "image/png":
         case "image/jpeg":
         case "image/tif":
         case "image/tiff": {
-          // process image
-          processedProps = await processImage(originalFile, metadata);
+          processedProps = await processImage(tempFilePath, metadata);
           break;
         }
-        // case "audio/mpeg": {
-        //   // process audio
-        //   break;
-        // }
         case "video/mp4": {
-          // process video
-          processedProps = await processMP4(originalFile, metadata);
+          processedProps = await processMP4(tempFilePath, metadata);
           break;
         }
         case "model/gltf-binary": {
-          // process glb
-          processedProps = await processGLB(originalFile, metadata);
+          processedProps = await processGLB(tempFilePath, metadata);
           break;
         }
       }
 
-      // update firestore record
+      // upload the generated files to GCS
+      await uploadFilesToGCS(tempDir, fileId);
+
+      // upload the generated files to web3.storage
+      const cid = await uploadTempFilesToWeb3Storage(tempDir);
+
+      // delete the original file as it's no longer needed
+      await originalFile.delete();
+
+      // delete the temp directory as it's no longer needed
+      deleteDir(tempDir);
+
+      console.log(
+        `--- finished processing ${originalFile.name} (${metadata.type})---`
+      );
+
+      // update associated firestore record
       return snap.ref.set(
         {
           ...processedProps,
+          cid,
           processed: true,
         },
         { merge: true }
@@ -151,14 +144,7 @@ export const fileDeleted = functions
 
     console.log(`Found ${files.length} files in ${fileId}/`);
 
-    // Delete all the files in the folder
-    const deletions = files.map((file) => {
-      console.log(`Deleting ${file.name}`);
-      return file.delete();
-    });
-
-    // Wait for all deletions to complete
-    await Promise.all(deletions);
+    deleteGCSFiles(files);
 
     console.log(`Finished deleting ${files.length} files in ${fileId}/`);
   });

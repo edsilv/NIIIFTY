@@ -34,7 +34,7 @@ export function getIIIFManifestJson(path, metadata) {
     case "image/tif":
     case "image/tiff": {
       body = {
-        id: `${path}/full.jpg`,
+        id: `${path}/optimized.jpg`,
         type: "Image",
         format: "image/jpeg",
         label,
@@ -60,7 +60,7 @@ export function getIIIFManifestJson(path, metadata) {
     }
     case "audio/mpeg": {
       body = {
-        id: `${path}/original.mp4`,
+        id: `${path}/optimized.mp3`,
         type: "Audio",
         format: "audio/mp3",
         label,
@@ -70,7 +70,7 @@ export function getIIIFManifestJson(path, metadata) {
     }
     case "video/mp4": {
       body = {
-        id: `${path}/original.mp4`,
+        id: `${path}/optimized.mp4`,
         type: "Video",
         format: "video/mp4",
         label,

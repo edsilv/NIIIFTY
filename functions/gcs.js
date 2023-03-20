@@ -32,3 +32,12 @@ export async function uploadFilesToGCS(dirPath, gcsPath) {
     })
   );
 }
+
+export async function deleteGCSFiles(files) {
+  const deletions = files.map((file) => {
+    // console.log(`Deleting ${file.name}`);
+    return file.delete();
+  });
+
+  return await Promise.all(deletions);
+}

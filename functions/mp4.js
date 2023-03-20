@@ -4,20 +4,12 @@ import path from "path";
 import ffprobe from "ffprobe";
 import ffprobeStatic from "ffprobe-static";
 import createThumbnails from "./thumbnails.js";
-import { createTempDir, deleteDir, deleteFile, createDir } from "./fs.js";
+import { deleteFile, createDir } from "./fs.js";
 import { createMP4IIIFDerivatives } from "./iiif.js";
-import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
-import { uploadFilesToGCS } from "./gcs.js";
 
-export default async function processMP4(mp4, metadata) {
-  console.log(`--- started processing mp4 ${mp4.name} ---`);
-
-  const tempDir = createTempDir();
-
-  const mp4FilePath = path.join(tempDir, "optimized.mp4");
-
-  await mp4.download({ destination: mp4FilePath });
-  console.log("mp4 downloaded to", mp4FilePath);
+export default async function processMP4(mp4FilePath, metadata) {
+  // optimise mp4
+  await optimizeMP4(mp4FilePath);
 
   await createThumbs(mp4FilePath);
   console.log("mp4 thumbnails generated");
@@ -34,18 +26,31 @@ export default async function processMP4(mp4, metadata) {
   // generate IIIF manifest
   await createMP4IIIFDerivatives(mp4FilePath, metadata);
 
-  // upload the generated files to GCS
-  await uploadFilesToGCS(tempDir, metadata.fileId);
+  // delete the original mp4 as it's already on GCS and will otherwise be uploaded again
+  deleteFile(mp4FilePath);
 
-  // upload the generated files to web3.storage
-  const cid = await uploadTempFilesToWeb3Storage(tempDir);
+  return { duration };
+}
 
-  // Once the video has been processed, delete the temp directory.
-  deleteDir(tempDir);
+async function optimizeMP4(mp4FilePath) {
+  const dir = path.dirname(mp4FilePath);
 
-  console.log(`--- finished processing mp4 ${mp4.name} ---`);
+  // Define output file paths
+  const optimizedFilePath = path.join(dir, "optimized.mp4");
 
-  return { cid, duration };
+  const command = ffmpeg(mp4FilePath)
+    .setFfmpegPath(ffmpeg_static)
+    .videoCodec("libx264")
+    .audioCodec("aac")
+    .audioBitrate("64k")
+    .videoBitrate("550k")
+    .addOption("-preset", "veryfast")
+    .addOption("-profile:v", "main")
+    .output(optimizedFilePath);
+
+  await promisifyCommand(command);
+
+  console.log("mp4 optimized at", optimizedFilePath);
 }
 
 function promisifyCommand(command) {
