@@ -10,7 +10,8 @@ import processGLB from "./glb.js";
 import processMP4 from "./mp4.js";
 import { createTempDir, deleteDir } from "./fs.js";
 import { uploadTempFilesToWeb3Storage } from "./web3Storage.js";
-import updateMetadataDerivatives from "./updateMetadataDerivatives.js";
+import updateMetadataDerivatives from "./update.js";
+import { GCS_URL } from "./constants.js";
 
 // when a file is created in firestore,
 // generate derivatives, and replicate to web3.storage
@@ -33,6 +34,7 @@ export const fileCreated = functions
 
       const metadata = {
         fileId,
+        baseURL: GCS_URL,
         ...snap.data(),
       };
 

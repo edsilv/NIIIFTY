@@ -1,7 +1,6 @@
 import sharp from "sharp";
 // import unzip from "unzip-stream";
 import path from "path";
-import { GCS_URL } from "./constants.js";
 import fs from "fs";
 import { createDir, deleteFile } from "./fs.js";
 import extract from "extract-zip";
@@ -153,7 +152,7 @@ export async function createIIIFManifest(dir, metadata) {
 
   console.log(`creating IIIF manifest for ${fileId}`);
 
-  const id = `${GCS_URL}/${fileId}`;
+  const id = `${metadata.baseURL}/${fileId}`;
 
   console.log(`creating iiif manifest with id "${id}"`);
 
