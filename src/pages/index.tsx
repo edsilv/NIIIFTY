@@ -1,5 +1,4 @@
 import UploadFilesButton from "@/components/UploadFilesButton";
-// import Link from "@/components/Link";
 import Metatags from "@/components/Metatags";
 import { title, description } from "../utils/Config";
 

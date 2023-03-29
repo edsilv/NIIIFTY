@@ -8,7 +8,6 @@ import { AuthoringFile, LicenseURL, MIMETYPES } from "@/utils/Types";
 import { useMounted } from "@/hooks/useMounted";
 import Alert from "../Alert";
 import { getFileUrl } from "@/utils/Utils";
-import ImageWithRetry from "../ImageWithRetry";
 import { ErrorMessage } from "../ErrorMessage";
 import cx from "classnames";
 import CopyText from "../CopyText";

@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { remove } from "@/hooks/useFile";
 import { usePaginatedFiles } from "@/hooks/usePaginatedFiles";
 import UploadFilesButton from "@/components/UploadFilesButton";
-import ImageWithRetry from "@/components/ImageWithRetry";
 import { getFileUrl } from "@/utils/Utils";
 import cx from "classnames";
 import Spinner from "@/components/Spinner";
@@ -19,7 +18,7 @@ function Admin() {
 }
 
 const FileList = () => {
-  const { user, username, userAdapter } = useContext(UserContext);
+  const { user, userAdapter } = useContext(UserContext);
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
   const pageSize = 10;

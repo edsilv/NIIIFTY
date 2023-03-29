@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash2 } from "./utils/Utils";
 
+// export const config = {
+//   matcher: ["/", "/index"],
+// };
+
 export const config = {
-  matcher: ["/", "/index"],
+  matcher: ["/enter"],
 };
 
 // https://github.com/vercel/examples/blob/main/edge-functions/basic-auth-password/middleware.ts
