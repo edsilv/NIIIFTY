@@ -37,7 +37,7 @@ export default {
   localhost: "http://localhost:3000/",
   environments: {
     default: {
-      basicAuthDisabled: false,
+      basicAuthDisabled: true,
       recaptchaSiteKey: "6LekWdUhAAAAAOKeHNJ-B1oIL_m-JYyZiqKF7uPV",
       site: "https://niiifty.com",
       headerTitle: "NIIIFTY",
